@@ -173,6 +173,14 @@
   .liveitem .lm .src{color:var(--blood);font-weight:700}
 
   .note{color:var(--grey2);font-size:11.5px;line-height:1.5;margin-top:8px}
+  .databar{display:flex;gap:10px;align-items:flex-start;background:linear-gradient(180deg,#17131b,#121216);
+    border:1px solid var(--line);border-left:3px solid var(--blood);border-radius:9px;padding:10px 13px;margin:16px 0 2px;
+    color:#c9ccd2;font-size:11.5px;line-height:1.5}
+  .databar .i{flex:none;width:17px;height:17px;border-radius:50%;background:var(--redgrad);color:#fff;
+    font-weight:700;font-size:11px;font-style:italic;display:flex;align-items:center;justify-content:center;margin-top:1px}
+  .est{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+    color:#ffbf5c;border:1px solid #6d5122;background:#231a0f;border-radius:4px;padding:1px 5px;vertical-align:middle;margin-left:5px}
+  .wincard .wtag{position:absolute;top:9px;right:26px}
   .disclaimer{margin:22px 4px 6px;color:var(--grey2);font-size:11px;line-height:1.5;
     border-top:1px solid var(--line);padding-top:14px}
   .grain{pointer-events:none;position:fixed;inset:0;z-index:1400;opacity:.05;mix-blend-mode:overlay;
@@ -241,6 +249,7 @@
 </header>
 
 <main>
+  <div class="databar"><span class="i">i</span><span data-i="data_banner">Only the city-wide 2025 totals are official.</span></div>
   <section id="s-over">
     <div class="sec-h"><h2 data-i="ov_h">Last month at a glance</h2><span class="barline"></span><span class="sub" id="ov_month"></span></div>
     <div class="kpis" id="kpis"></div>
@@ -337,6 +346,10 @@ const I18N = {
     win_h:"Reported crimes · rolling estimate", win_scope:"Greater Bilbao · modelled from the annual rate",
     win_24:"Last 24 hours", win_3d:"Last 3 days", win_wk:"Last 7 days", win_press:"in the press",
     wb_h:"By neighbourhood", win_tap:"tap for breakdown",
+    est:"est.", model:"model",
+    data_banner:"Only the city-wide 2025 totals are official (Ertzaintza & Bilbao Municipal Police). Per-neighbourhood, monthly and 24h/3d/7d figures are a model built from those totals — an illustration, not official counts.",
+    nb_model:"Neighbourhood figures are modelled from the city total, not official per-area counts.",
+    dyn_model:"modelled from the annual total — not an official monthly series",
     live_h:"Recent incidents", live_sub:"Live news feed",
     live_24:"24 hours", live_3d:"3 days", live_wk:"Week",
     live_loading:"Loading the latest headlines…",
@@ -374,6 +387,10 @@ const I18N = {
     win_h:"Преступления · скользящая оценка", win_scope:"Большой Бильбао · оценка по годовой норме",
     win_24:"За 24 часа", win_3d:"За 3 дня", win_wk:"За 7 дней", win_press:"в прессе",
     wb_h:"По кварталам", win_tap:"нажми для разбивки",
+    est:"оценка", model:"модель",
+    data_banner:"Официальны только городские итоги за 2025 (Ertzaintza и муниципальная полиция Бильбао). Цифры по кварталам, месяцам и за 24ч/3д/7д — модель на их основе: иллюстрация, а не официальные подсчёты.",
+    nb_model:"Цифры по кварталу — модель на основе городского итога, а не официальный подсчёт по району.",
+    dyn_model:"модель на основе годового итога — не официальный помесячный ряд",
     live_h:"Последние происшествия", live_sub:"Живой новостной фид",
     live_24:"24 часа", live_3d:"3 дня", live_wk:"Неделя",
     live_loading:"Загружаю свежие заголовки…",
@@ -751,7 +768,7 @@ function renderWindows(){
       const est=winEstimate(days), pc=pressCount(days);
       return `<div class="wincard ${winOpen===days?'on':''}" onclick="winTap(${days})">
         <span class="wtap">${winOpen===days?'▲':'▾'}</span>
-        <div class="wv">${fmt(est)}</div><div class="wl">${t(k)}</div>
+        <div class="wv">${fmt(est)}</div><div class="wl">${t(k)} <span class="est">${t("est")}</span></div>
         <div class="wp">${pc==null?"&nbsp;":"● "+pc+" "+t("win_press")}</div></div>`;
     }).join("")+`</div>`;
 }
@@ -859,7 +876,7 @@ function statBlock(d, ctx){
       <span class="dot" style="background:${nc.dot}"></span><span class="txt">${t(nc.txt)}</span></div>
     <div class="grid2">
       <div>
-        <div class="stat-row"><span class="k">${t("d_incidents")}</span><span class="v">${fmt(d.annual)}</span></div>
+        <div class="stat-row"><span class="k">${t("d_incidents")}</span><span class="v">${fmt(d.annual)} <span class="est">${t("est")}</span></span></div>
         <div class="stat-row"><span class="k">${t("d_share")}</span><span class="v">${share.toFixed(1)}%</span></div>
         <div class="stat-row"><span class="k">${t("d_violent")}</span><span class="v">${d.violent.toFixed(1)}%</span></div>
         <div class="stat-row"><span class="k">${t("d_trend")}</span><span class="v ${d.trend>=0?'up':'down'}">${trendTxt}</span></div>
@@ -877,7 +894,8 @@ function statBlock(d, ctx){
         <div class="mini-label" style="margin-top:16px">${t("d_trend")} · ${t("chart_unit")}</div>
         <svg viewBox="0 0 340 130" class="chart-svg" id="${sid}"></svg>
       </div>
-    </div>`;
+    </div>
+    <div class="note">* ${t("nb_model")}</div>`;
 }
 function renderDetail(){
   const box=document.getElementById("detail");
@@ -925,7 +943,7 @@ function renderKPIs(){
   const riskiest=[...D].sort((a,b)=>b.riskN-a.riskN)[0];
   document.getElementById("ov_month").textContent=`${MNAME[LANG][MONTHS[11].m]} ${MONTHS[11].y}`;
   const items=[
-    {v:fmt(lastCity),l:t("kpi_total"),d:`${(diff>=0?"▲ +":"▼ ")+diff.toFixed(1)}%`,cls:diff>=0?"up":"down"},
+    {v:fmt(lastCity),l:t("kpi_total")+` <span class="est">${t("est")}</span>`,d:`${(diff>=0?"▲ +":"▼ ")+diff.toFixed(1)}%`,cls:diff>=0?"up":"down"},
     {v:"55.5%",l:t("kpi_theft"),d:t("prev")+": 55.6%",cls:""},
     {v:riskiest.nm[LANG],l:t("kpi_night"),d:"☠ "+t("risk")[riskLabelIdx(riskiest.riskN)],cls:"up"},
     {v:fmt(ARRESTS),l:t("kpi_arr"),d:"2025",cls:""}
@@ -937,7 +955,7 @@ function renderKPIs(){
 function drawDyn(){
   const el=document.getElementById("chartDyn");
   document.getElementById("dyn_sub").textContent=`${MNAME[LANG][MONTHS[0].m]} ${MONTHS[0].y} — ${MNAME[LANG][MONTHS[11].m]} ${MONTHS[11].y}`;
-  document.getElementById("dyn_scope").textContent = (LANG==="ru"?"Бильбао · зарегистрированные преступления в месяц":"Bilbao · reported crimes per month");
+  document.getElementById("dyn_scope").innerHTML = (LANG==="ru"?"Бильбао · преступления в месяц":"Bilbao · reported crimes per month")+` <span class="est">${t("est")}</span> <span style="color:var(--grey2)">— ${t("dyn_model")}</span>`;
   const W=900,H=330,L=54,R=14,T=18,B=44;
   const data=CITY_MONTHLY, max=Math.max(...data)*1.12, min=0;
   const bw=(W-L-R)/data.length;
