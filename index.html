@@ -13,9 +13,11 @@
 <title>NOIR BILBAO — Crime Map</title>
 <style>
   :root{
-    --bg:#0b0b0d; --panel:#141418; --panel2:#1b1b21; --line:#2a2a31;
-    --white:#f2f2f0; --grey:#9aa0a6; --grey2:#6b7076;
-    --blood:#c1121f; --blood-bright:#e01020; --blood-dark:#7a0a12;
+    --bg:#0b0b0d; --panel:#151519; --panel2:#1c1c23; --line:#34343e;
+    --white:#fbfbfa; --grey:#b8bec5; --grey2:#8b929a;
+    --blood:#c1121f; --blood-bright:#ff2a3c; --blood-dark:#7a0a12;
+    --card:linear-gradient(158deg,#1e181b 0%, #141418 60%);
+    --redgrad:linear-gradient(180deg,#e01522 0%, #92101a 100%);
     --shadow:0 10px 40px rgba(0,0,0,.6);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -44,9 +46,9 @@
   .win-h .wt{font-size:11px;color:var(--grey);letter-spacing:.1em;text-transform:uppercase;font-weight:700}
   .win-h .wsc{font-size:10px;color:var(--grey2);letter-spacing:.05em;text-transform:uppercase;text-align:right}
   .wincards{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
-  .wincard{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 12px;position:relative;overflow:hidden;cursor:pointer;transition:border-color .12s,background .12s}
-  .wincard:hover{border-color:#4a2b2f}
-  .wincard.on{border-color:var(--blood);background:#1c1416}
+  .wincard{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 12px;position:relative;overflow:hidden;cursor:pointer;transition:border-color .12s,background .12s,box-shadow .12s}
+  .wincard:hover{border-color:#6a3238;box-shadow:0 4px 18px rgba(224,21,34,.14)}
+  .wincard.on{border-color:var(--blood);background:linear-gradient(158deg,#2c161a 0%, #191317 60%);box-shadow:0 4px 18px rgba(224,21,34,.22)}
   .wincard::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--blood)}
   .wincard .wv{font-family:Impact,"Arial Narrow",sans-serif;font-weight:700;font-size:27px;line-height:1;color:#f2f2f0}
   .wincard .wl{font-size:11px;color:var(--grey);letter-spacing:.06em;text-transform:uppercase;margin-top:5px;font-weight:700}
@@ -65,7 +67,7 @@
   .lang{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
   .lang button{background:transparent;border:0;color:var(--grey);font:inherit;font-size:13px;
     padding:6px 11px;cursor:pointer;letter-spacing:.05em;text-transform:uppercase;font-weight:700}
-  .lang button.on{background:var(--blood);color:#fff}
+  .lang button.on{background:var(--redgrad);color:#fff;box-shadow:0 1px 8px rgba(224,21,34,.4)}
 
   main{max-width:1100px;margin:0 auto;padding:14px}
   .sec-h{display:flex;align-items:baseline;gap:10px;margin:26px 4px 12px}
@@ -74,8 +76,10 @@
   .sec-h .sub{color:var(--grey2);font-size:11px;letter-spacing:.14em;text-transform:uppercase}
 
   .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 13px;position:relative;overflow:hidden}
-  .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--blood)}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 13px;position:relative;overflow:hidden}
+  .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--redgrad)}
+  .kpi::after{content:"";position:absolute;inset:0;background:radial-gradient(120% 80% at 0% 0%, rgba(224,21,34,.10), transparent 60%);pointer-events:none}
+  .kpi>div{position:relative;z-index:1}
   .kpi .v{font-family:Impact,"Arial Narrow",sans-serif;font-weight:700;font-size:26px;line-height:1;letter-spacing:.01em}
   .kpi .l{font-size:10.5px;color:var(--grey);letter-spacing:.08em;text-transform:uppercase;margin-top:6px}
   .kpi .d{font-size:11px;margin-top:5px;font-family:"Courier New",monospace}
@@ -86,7 +90,7 @@
   .seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
   .seg button{background:transparent;border:0;color:var(--grey);
     font-size:12px;text-transform:uppercase;letter-spacing:.05em;padding:7px 12px;cursor:pointer;font-weight:700}
-  .seg button.on{background:var(--panel2);color:var(--white);box-shadow:inset 0 -2px 0 var(--blood)}
+  .seg button.on{background:var(--redgrad);color:#fff;box-shadow:0 1px 8px rgba(224,21,34,.35)}
   .hint{color:var(--grey2);font-size:11px;letter-spacing:.04em;margin-left:auto;text-transform:uppercase}
 
   .mapwrap{position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;
@@ -112,7 +116,7 @@
   .resetbtn{position:absolute;right:10px;bottom:12px;z-index:800;background:#14141aee;border:1px solid var(--line);
     color:#f2f2f0;border-radius:9px;width:38px;height:38px;font-size:15px;cursor:pointer}
 
-  .detail{margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  .detail{margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:12px;
     overflow:hidden;box-shadow:var(--shadow)}
   .detail .top{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);
     background:linear-gradient(90deg,#1a1216,#141418)}
@@ -126,7 +130,7 @@
   .stat-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed var(--line);font-size:14px}
   .stat-row .k{color:var(--grey);text-transform:uppercase;font-size:12px;letter-spacing:.05em}
   .stat-row .v{font-weight:700}
-  .p{color:#cdd0d4;font-size:13.5px;line-height:1.6}
+  .p{color:#dde0e4;font-size:13.5px;line-height:1.6}
   .night{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:9px;margin:6px 0 12px;border:1px solid var(--line)}
   .night .dot{width:11px;height:11px;border-radius:50%}
   .night .txt{font-size:13px;text-transform:uppercase;letter-spacing:.04em;font-weight:700}
@@ -141,14 +145,14 @@
   .chip{font-size:11px;text-transform:uppercase;letter-spacing:.05em;
     border:1px solid var(--line);color:#cdd0d4;padding:5px 9px;border-radius:20px;background:var(--panel2)}
 
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 14px 8px;box-shadow:var(--shadow)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 14px 8px;box-shadow:var(--shadow)}
   .chart-svg{width:100%;height:auto;display:block;overflow:visible}
   .gline{stroke:#20202680;stroke-width:1}
   .alabel{fill:var(--grey2);font-size:10px;font-family:"Courier New",monospace}
   .vlabel{fill:#f2f2f0;font-size:9px;font-family:"Courier New",monospace}
 
   .rank{display:flex;flex-direction:column;gap:7px}
-  .rgroup{background:var(--panel2);border:1px solid var(--line);border-radius:9px;overflow:hidden;transition:border-color .12s}
+  .rgroup{background:var(--card);border:1px solid var(--line);border-radius:9px;overflow:hidden;transition:border-color .12s}
   .rgroup.on{border-color:var(--blood)}
   .rank .row{display:grid;grid-template-columns:26px 1fr auto;gap:10px;align-items:center;
     padding:10px 12px;cursor:pointer}
@@ -178,7 +182,7 @@
     backdrop-filter:blur(10px);display:flex;justify-content:center;gap:2px;padding:8px 6px calc(8px + env(safe-area-inset-bottom))}
   nav button{flex:1;max-width:140px;background:transparent;border:0;color:var(--grey2);
     text-transform:uppercase;font-size:10.5px;letter-spacing:.05em;padding:7px 3px;cursor:pointer;border-radius:8px;font-weight:700}
-  nav button.on{color:var(--white);background:#1a1a20}
+  nav button.on{color:var(--white);background:linear-gradient(180deg,#2a161a,#191319);box-shadow:inset 0 1px 0 rgba(224,21,34,.3)}
   nav button.on b{color:var(--blood)}
   nav button b{display:block;font-size:15px;margin-bottom:2px;color:var(--grey)}
 </style>
