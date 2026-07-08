@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0d">
+<meta name="description" content="Crime map of Greater Bilbao — neighbourhoods, monthly dynamics, night safety, live incidents.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<title>NOIR BILBAO — Crime Map</title>
+<style>
+  :root{
+    --bg:#0b0b0d; --panel:#141418; --panel2:#1b1b21; --line:#2a2a31;
+    --white:#f2f2f0; --grey:#9aa0a6; --grey2:#6b7076;
+    --blood:#c1121f; --blood-bright:#e01020; --blood-dark:#7a0a12;
+    --shadow:0 10px 40px rgba(0,0,0,.6);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--white);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    overscroll-behavior:none;-webkit-font-smoothing:antialiased}
+  body{padding-bottom:76px}
+  h1,h2,h3{font-family:"Arial Narrow",Impact,sans-serif;font-weight:700;
+    text-transform:uppercase;letter-spacing:.04em;margin:0}
+  a{color:inherit}
+
+  header{position:sticky;top:0;z-index:1200;background:linear-gradient(180deg,#0d0d10, #0b0b0dcc);
+    border-bottom:1px solid var(--line);backdrop-filter:blur(8px)}
+  .bar{display:flex;align-items:center;gap:10px;padding:12px 14px;max-width:1100px;margin:0 auto}
+  .logo{display:flex;align-items:center;gap:11px}
+  .emblem{width:42px;height:42px;flex:none;filter:drop-shadow(0 2px 6px rgba(0,0,0,.5))}
+  .wordwrap{display:flex;flex-direction:column;line-height:.86}
+  .logo .k{font-family:Impact,"Arial Narrow",sans-serif;font-weight:700;font-size:23px;letter-spacing:.04em;
+    color:#f2f2f0;text-shadow:0 1px 0 #000}
+  .logo .k b{color:var(--blood);font-style:italic;font-weight:700}
+  .logo .k .ct{color:var(--blood)}
+  .logo .s{font-size:9.5px;letter-spacing:.30em;color:var(--grey2);text-transform:uppercase;margin-top:3px}
+
+  .winstrip{margin-bottom:12px}
+  .win-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:0 2px 8px}
+  .win-h .wt{font-size:11px;color:var(--grey);letter-spacing:.1em;text-transform:uppercase;font-weight:700}
+  .win-h .wsc{font-size:10px;color:var(--grey2);letter-spacing:.05em;text-transform:uppercase;text-align:right}
+  .wincards{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+  .wincard{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 12px;position:relative;overflow:hidden;cursor:pointer;transition:border-color .12s,background .12s}
+  .wincard:hover{border-color:#4a2b2f}
+  .wincard.on{border-color:var(--blood);background:#1c1416}
+  .wincard::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--blood)}
+  .wincard .wv{font-family:Impact,"Arial Narrow",sans-serif;font-weight:700;font-size:27px;line-height:1;color:#f2f2f0}
+  .wincard .wl{font-size:11px;color:var(--grey);letter-spacing:.06em;text-transform:uppercase;margin-top:5px;font-weight:700}
+  .wincard .wp{font-size:10.5px;color:var(--blood-bright);letter-spacing:.03em;margin-top:5px;font-family:"Courier New",monospace;min-height:13px}
+  .wincard .wtap{position:absolute;top:9px;right:10px;font-size:11px;color:var(--grey2)}
+  .winbreak{margin-bottom:12px}
+  .wbrows{max-height:340px;overflow-y:auto;margin-top:4px}
+  .wbrow{display:grid;grid-template-columns:1fr 90px 46px;gap:10px;align-items:center;padding:7px 4px;border-bottom:1px solid #202027;cursor:pointer}
+  .wbrow:hover{background:#1a1a20}
+  .wbn{font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.02em}
+  .wbn small{display:block;color:var(--grey2);font-size:9.5px;letter-spacing:.08em;font-weight:400}
+  .wbbar{height:8px;background:#23232a;border-radius:5px;overflow:hidden}
+  .wbbar div{height:100%;border-radius:5px}
+  .wbc{font-family:Impact,"Arial Narrow",sans-serif;font-weight:700;font-size:16px;text-align:right}
+  .spacer{flex:1}
+  .lang{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  .lang button{background:transparent;border:0;color:var(--grey);font:inherit;font-size:13px;
+    padding:6px 11px;cursor:pointer;letter-spacing:.05em;text-transform:uppercase;font-weight:700}
+  .lang button.on{background:var(--blood);color:#fff}
+
+  main{max-width:1100px;margin:0 auto;padding:14px}
+  .sec-h{display:flex;align-items:baseline;gap:10px;margin:26px 4px 12px}
+  .sec-h h2{font-size:19px;color:var(--white)}
+  .sec-h .barline{flex:1;height:1px;background:linear-gradient(90deg,var(--blood),transparent);margin-bottom:5px}
+  .sec-h .sub{color:var(--grey2);font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 13px;position:relative;overflow:hidden}
+  .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--blood)}
+  .kpi .v{font-family:Impact,"Arial Narrow",sans-serif;font-weight:700;font-size:26px;line-height:1;letter-spacing:.01em}
+  .kpi .l{font-size:10.5px;color:var(--grey);letter-spacing:.08em;text-transform:uppercase;margin-top:6px}
+  .kpi .d{font-size:11px;margin-top:5px;font-family:"Courier New",monospace}
+  .up{color:var(--blood-bright)} .down{color:#7fb08a}
+  @media(max-width:620px){.kpis{grid-template-columns:repeat(2,1fr)}}
+
+  .maptools{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+  .seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+  .seg button{background:transparent;border:0;color:var(--grey);
+    font-size:12px;text-transform:uppercase;letter-spacing:.05em;padding:7px 12px;cursor:pointer;font-weight:700}
+  .seg button.on{background:var(--panel2);color:var(--white);box-shadow:inset 0 -2px 0 var(--blood)}
+  .hint{color:var(--grey2);font-size:11px;letter-spacing:.04em;margin-left:auto;text-transform:uppercase}
+
+  .mapwrap{position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;
+    height:min(66vh,580px);box-shadow:var(--shadow);background:#0c0c0f}
+  #map{width:100%;height:100%;background:#0c0c0f}
+  .leaflet-container{background:#0c0c0f;font-family:inherit}
+  .leaflet-control-zoom a{background:#14141aee;color:#f2f2f0;border-color:#2a2a31}
+  .leaflet-control-zoom a:hover{background:#1f1f26}
+  .leaflet-bar{border-color:#2a2a31;box-shadow:0 2px 10px rgba(0,0,0,.5)}
+  .leaflet-control-attribution{background:#0c0c0fcc!important;color:#6b7076!important;font-size:9px}
+  .leaflet-control-attribution a{color:#8a8f96!important}
+  .zlabel{background:transparent;border:0;box-shadow:none;color:#fff;font-family:Impact,"Arial Narrow",sans-serif;
+    font-weight:700;font-size:11px;letter-spacing:.03em;text-transform:uppercase;
+    text-shadow:0 0 3px #000,0 0 3px #000,0 1px 2px #000;padding:0;white-space:nowrap}
+  .zlabel::before{display:none}
+  .map-lo .zlabel:not(.sel){display:none}
+  .zlabel.sel{color:#fff;font-size:12.5px}
+  .legend{position:absolute;left:10px;bottom:12px;background:#0d0d10e6;border:1px solid var(--line);
+    border-radius:9px;padding:9px 11px;z-index:800;max-width:190px}
+  .legend .t{font-size:10px;letter-spacing:.14em;color:var(--grey);text-transform:uppercase;margin-bottom:6px}
+  .legbar{height:9px;border-radius:5px;background:linear-gradient(90deg,#4a4d52,#7a0a12,#c1121f,#ff2130)}
+  .legend .ends{display:flex;justify-content:space-between;font-size:9.5px;color:var(--grey2);margin-top:4px;letter-spacing:.06em}
+  .resetbtn{position:absolute;right:10px;bottom:12px;z-index:800;background:#14141aee;border:1px solid var(--line);
+    color:#f2f2f0;border-radius:9px;width:38px;height:38px;font-size:15px;cursor:pointer}
+
+  .detail{margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    overflow:hidden;box-shadow:var(--shadow)}
+  .detail .top{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);
+    background:linear-gradient(90deg,#1a1216,#141418)}
+  .risk-badge{font-weight:700;font-size:12px;padding:5px 10px;border-radius:6px;
+    text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+  .detail h3{font-size:22px}
+  .detail .muni{font-size:11px;color:var(--grey);letter-spacing:.1em;text-transform:uppercase}
+  .detail .body{padding:16px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:680px){.grid2{grid-template-columns:1fr}}
+  .stat-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed var(--line);font-size:14px}
+  .stat-row .k{color:var(--grey);text-transform:uppercase;font-size:12px;letter-spacing:.05em}
+  .stat-row .v{font-weight:700}
+  .p{color:#cdd0d4;font-size:13.5px;line-height:1.6}
+  .night{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:9px;margin:6px 0 12px;border:1px solid var(--line)}
+  .night .dot{width:11px;height:11px;border-radius:50%}
+  .night .txt{font-size:13px;text-transform:uppercase;letter-spacing:.04em;font-weight:700}
+  .mini-label{font-size:11px;color:var(--grey);letter-spacing:.1em;text-transform:uppercase;margin:4px 0 8px;font-weight:700}
+
+  .tbar{margin:9px 0}
+  .tbar .r{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;text-transform:uppercase;letter-spacing:.03em}
+  .tbar .track{height:8px;background:#26262c;border-radius:5px;overflow:hidden}
+  .tbar .fill{height:100%;background:linear-gradient(90deg,var(--blood-dark),var(--blood-bright))}
+
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:6px}
+  .chip{font-size:11px;text-transform:uppercase;letter-spacing:.05em;
+    border:1px solid var(--line);color:#cdd0d4;padding:5px 9px;border-radius:20px;background:var(--panel2)}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 14px 8px;box-shadow:var(--shadow)}
+  .chart-svg{width:100%;height:auto;display:block;overflow:visible}
+  .gline{stroke:#20202680;stroke-width:1}
+  .alabel{fill:var(--grey2);font-size:10px;font-family:"Courier New",monospace}
+  .vlabel{fill:#f2f2f0;font-size:9px;font-family:"Courier New",monospace}
+
+  .rank{display:flex;flex-direction:column;gap:7px}
+  .rgroup{background:var(--panel2);border:1px solid var(--line);border-radius:9px;overflow:hidden;transition:border-color .12s}
+  .rgroup.on{border-color:var(--blood)}
+  .rank .row{display:grid;grid-template-columns:26px 1fr auto;gap:10px;align-items:center;
+    padding:10px 12px;cursor:pointer}
+  .rank .row:hover{background:#20141650}
+  .rank .pos{font-weight:700;color:var(--blood);font-size:16px;text-align:center;font-family:Impact,sans-serif}
+  .rank .nm{text-transform:uppercase;letter-spacing:.03em;font-size:14px;font-weight:700}
+  .rank .nm small{display:block;color:var(--grey2);font-size:10px;letter-spacing:.1em;font-weight:400}
+  .rank .sc{font-weight:700;font-size:15px;font-family:Impact,sans-serif;display:flex;align-items:center;gap:8px}
+  .rank .caret{color:var(--grey);font-size:11px}
+  .rpanel{padding:2px 14px 14px;border-top:1px solid var(--line)}
+
+  .liveitem{display:block;background:var(--panel2);border:1px solid var(--line);border-radius:9px;
+    padding:10px 12px;margin-bottom:8px;text-decoration:none;transition:border-color .12s}
+  .liveitem:hover{border-color:var(--blood)}
+  .liveitem .lt{font-size:13.5px;line-height:1.4;color:#eef0f2}
+  .liveitem .lm{display:flex;justify-content:space-between;gap:10px;margin-top:6px;
+    font-size:10.5px;color:var(--grey2);letter-spacing:.04em;text-transform:uppercase;font-family:"Oswald","Arial Narrow",sans-serif}
+  .liveitem .lm .src{color:var(--blood);font-weight:700}
+
+  .note{color:var(--grey2);font-size:11.5px;line-height:1.5;margin-top:8px}
+  .disclaimer{margin:22px 4px 6px;color:var(--grey2);font-size:11px;line-height:1.5;
+    border-top:1px solid var(--line);padding-top:14px}
+  .grain{pointer-events:none;position:fixed;inset:0;z-index:1400;opacity:.05;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+  nav{position:fixed;left:0;right:0;bottom:0;z-index:1300;background:#0c0c0feb;border-top:1px solid var(--line);
+    backdrop-filter:blur(10px);display:flex;justify-content:center;gap:2px;padding:8px 6px calc(8px + env(safe-area-inset-bottom))}
+  nav button{flex:1;max-width:140px;background:transparent;border:0;color:var(--grey2);
+    text-transform:uppercase;font-size:10.5px;letter-spacing:.05em;padding:7px 3px;cursor:pointer;border-radius:8px;font-weight:700}
+  nav button.on{color:var(--white);background:#1a1a20}
+  nav button.on b{color:var(--blood)}
+  nav button b{display:block;font-size:15px;margin-bottom:2px;color:var(--grey)}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<header>
+  <div class="bar">
+    <div class="logo">
+      <svg class="emblem" viewBox="0 0 48 48" aria-hidden="true">
+        <defs>
+          <linearGradient id="eb" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#24252c"/><stop offset="1" stop-color="#0d0d11"/></linearGradient>
+          <radialGradient id="em" cx="42%" cy="38%" r="62%">
+            <stop offset="0" stop-color="#ff3340"/><stop offset="55%" stop-color="#c1121f"/><stop offset="100%" stop-color="#6b0910"/></radialGradient>
+          <radialGradient id="eg" cx="50%" cy="50%" r="50%">
+            <stop offset="0" stop-color="#e01020" stop-opacity=".45"/><stop offset="100%" stop-color="#e01020" stop-opacity="0"/></radialGradient>
+          <clipPath id="ec"><rect x="2.5" y="2.5" width="43" height="43" rx="11"/></clipPath>
+        </defs>
+        <rect x="2.5" y="2.5" width="43" height="43" rx="11" fill="url(#eb)" stroke="#3a3b44" stroke-width="1.2"/>
+        <g clip-path="url(#ec)">
+          <circle cx="30" cy="18" r="15" fill="url(#eg)"/>
+          <circle cx="30" cy="18" r="8.6" fill="url(#em)"/>
+          <circle cx="27" cy="15.4" r="2.1" fill="#6b0910" opacity=".55"/>
+          <circle cx="33.2" cy="20.4" r="1.7" fill="#6b0910" opacity=".5"/>
+          <circle cx="31.6" cy="15" r="1.1" fill="#8f0e18" opacity=".5"/>
+          <g fill="#08080a">
+            <rect x="4" y="33" width="5" height="15"/>
+            <rect x="10" y="29" width="5" height="19"/>
+            <rect x="16" y="35" width="4" height="13"/>
+            <rect x="21" y="31" width="5" height="17"/>
+            <rect x="27" y="34" width="5" height="14"/>
+            <rect x="33" y="30" width="4" height="18"/>
+            <rect x="38" y="36" width="5" height="12"/>
+          </g>
+          <g fill="#ffcf6b">
+            <rect x="5.2" y="36" width="1.1" height="1.6"/><rect x="5.2" y="40" width="1.1" height="1.6"/>
+            <rect x="11.3" y="32" width="1.1" height="1.6"/><rect x="11.3" y="37" width="1.1" height="1.6"/><rect x="13" y="42" width="1.1" height="1.6"/>
+            <rect x="22.3" y="34" width="1.1" height="1.6"/><rect x="22.3" y="39" width="1.1" height="1.6"/>
+            <rect x="28.4" y="37" width="1.1" height="1.6"/>
+            <rect x="34.1" y="33" width="1.1" height="1.6"/><rect x="34.1" y="38" width="1.1" height="1.6"/><rect x="34.1" y="43" width="1.1" height="1.6"/>
+          </g>
+        </g>
+      </svg>
+      <div class="wordwrap">
+        <span class="k">NOIR<b class="ct">·</b>BILBAO</span>
+        <span class="s" data-i="tagline">Crime Atlas · Gran Bilbao</span>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <div class="lang">
+      <button id="ru" onclick="setLang('ru')">RU</button>
+      <button id="en" class="on" onclick="setLang('en')">EN</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section id="s-over">
+    <div class="sec-h"><h2 data-i="ov_h">Last month at a glance</h2><span class="barline"></span><span class="sub" id="ov_month"></span></div>
+    <div class="kpis" id="kpis"></div>
+  </section>
+
+  <section id="s-map">
+    <div class="sec-h"><h2 data-i="map_h">The map</h2><span class="barline"></span><span class="sub" data-i="map_sub">Scroll · zoom · tap a zone</span></div>
+    <div class="winstrip" id="winstrip"></div>
+    <div class="winbreak" id="winbreak"></div>
+    <div class="maptools">
+      <div class="seg" id="mapmode">
+        <button data-mode="danger" class="on" data-i="m_danger">Night risk</button>
+        <button data-mode="volume" data-i="m_volume">Volume</button>
+      </div>
+      <span class="hint" data-i="map_hint">Tap a neighbourhood</span>
+    </div>
+    <div class="mapwrap">
+      <div id="map"></div>
+      <div class="legend">
+        <div class="t" id="leg_t">Night risk</div>
+        <div class="legbar"></div>
+        <div class="ends"><span data-i="leg_lo">Calm</span><span data-i="leg_hi">Avoid</span></div>
+      </div>
+      <button class="resetbtn" onclick="resetView()" title="reset">⟲</button>
+    </div>
+    <div class="detail" id="detail"></div>
+  </section>
+
+  <section id="s-live">
+    <div class="sec-h"><h2 data-i="live_h">Recent incidents</h2><span class="barline"></span><span class="sub" data-i="live_sub">Live news feed</span></div>
+    <div class="card">
+      <div class="seg" id="livetabs" style="margin-bottom:10px">
+        <button data-win="1" class="on" data-i="live_24">24 hours</button>
+        <button data-win="3" data-i="live_3d">3 days</button>
+        <button data-win="7" data-i="live_wk">Week</button>
+        <button onclick="loadLive(true)" title="reload" style="border-left:1px solid var(--line)">⟳</button>
+      </div>
+      <div id="liveList"></div>
+      <div class="note" id="live_note"></div>
+    </div>
+  </section>
+
+  <section id="s-dyn">
+    <div class="sec-h"><h2 data-i="dyn_h">Monthly dynamics</h2><span class="barline"></span><span class="sub" id="dyn_sub"></span></div>
+    <div class="card">
+      <div class="mini-label" id="dyn_scope"></div>
+      <svg id="chartDyn" class="chart-svg" viewBox="0 0 900 330"></svg>
+    </div>
+  </section>
+
+  <section id="s-mix">
+    <div class="sec-h"><h2 data-i="mix_h">Character of crime</h2><span class="barline"></span><span class="sub" data-i="mix_sub">Last 12 months · Bilbao</span></div>
+    <div class="grid2">
+      <div class="card"><div class="mini-label" data-i="mix_type">By type</div><div id="typeMix"></div></div>
+      <div class="card"><div class="mini-label" data-i="mix_who">Who commits them</div><div id="offBox"></div></div>
+    </div>
+  </section>
+
+  <section id="s-rank">
+    <div class="sec-h"><h2 data-i="rank_h">Most dangerous zones</h2><span class="barline"></span><span class="sub" data-i="rank_sub">Tap a row to expand</span></div>
+    <div class="rank" id="rank"></div>
+  </section>
+
+  <div class="disclaimer" id="disc"></div>
+</main>
+
+<nav>
+  <button class="on" data-go="s-over"><b>◆</b><span data-i="nav_over">Overview</span></button>
+  <button data-go="s-map"><b>◈</b><span data-i="nav_map">Map</span></button>
+  <button data-go="s-live"><b>◉</b><span data-i="nav_live">Live</span></button>
+  <button data-go="s-dyn"><b>▤</b><span data-i="nav_dyn">Trend</span></button>
+  <button data-go="s-rank"><b>☠</b><span data-i="nav_rank">Danger</span></button>
+</nav>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+/* =========================================================================
+   NOIR BILBAO — PWA crime atlas of Greater Bilbao (neighbourhood level).
+   City-wide figures anchored to official 2025 aggregates (Ertzaintza /
+   Policía Municipal de Bilbao, via Deia / SeguCITY / Maldita / Libertad
+   Digital). Neighbourhood & monthly breakdowns are MODELLED. Zones are
+   proportional markers at real coordinates (not official boundaries).
+   Live incidents: Google News RSS via a public CORS proxy.
+   Basemap: © OpenStreetMap contributors, © CARTO (Dark Matter).
+   ========================================================================= */
+
+const I18N = {
+  en:{
+    tagline:"Crime Atlas · Gran Bilbao",
+    ov_h:"Last month at a glance", map_h:"The map", map_sub:"Scroll · zoom · tap a zone",
+    m_danger:"Night risk", m_volume:"Volume", map_hint:"Tap a neighbourhood",
+    leg_lo:"Calm", leg_hi:"Avoid",
+    win_h:"Reported crimes · rolling estimate", win_scope:"Greater Bilbao · modelled from the annual rate",
+    win_24:"Last 24 hours", win_3d:"Last 3 days", win_wk:"Last 7 days", win_press:"in the press",
+    wb_h:"By neighbourhood", win_tap:"tap for breakdown",
+    live_h:"Recent incidents", live_sub:"Live news feed",
+    live_24:"24 hours", live_3d:"3 days", live_wk:"Week",
+    live_loading:"Loading the latest headlines…",
+    live_fail:"Couldn't reach the news feed right now. Tap ⟳ to retry — it needs an internet connection.",
+    live_none:"No matching headlines in this window. Try a longer period.",
+    live_note:"Live headlines from Google News (crime & policing in Bilbao / Bizkaia). This is a press feed, not an official police log — every item links to its source.",
+    dyn_h:"Monthly dynamics", mix_h:"Character of crime", mix_sub:"Last 12 months · Bilbao",
+    mix_type:"By type", mix_who:"Who commits them",
+    rank_h:"Most dangerous zones", rank_sub:"Tap a row to expand",
+    nav_over:"Overview", nav_map:"Map", nav_live:"Live", nav_dyn:"Trend", nav_rank:"Danger",
+    leg_vol:"Reported crimes",
+    kpi_total:"Reported crimes", kpi_theft:"Theft share", kpi_night:"Riskiest after dark", kpi_arr:"Arrests (yr)",
+    risk:["Very high","High","Elevated","Moderate","Calm"],
+    night_safe:"OK to walk at night", night_care:"Walk with care at night", night_avoid:"Avoid at night",
+    d_incidents:"Reported crimes / yr", d_share:"Share of city total", d_violent:"Violent-crime share",
+    d_trend:"12-month trend",
+    walk_h:"Night guidance", type_h:"Crime mix", who_h:"Typical offenders",
+    chart_unit:"reported crimes per month",
+    types:{theft:"Theft & pickpocketing",robbery:"Violent robbery",burglary:"Burglary",
+      assault:"Assault & fights",drugs:"Drug-related",vandal:"Vandalism",cyber:"Cybercrime",sex:"Sexual offences"},
+    tap_prompt:"Tap any zone on the map to open its file.",
+    off_stat:["3,155 arrests in 2025","7,679 people investigated","275 repeat offenders","~55% of crime is theft"],
+    origin_h:"Origin of those detained · Basque Country, Jan–Sep 2025",
+    origin:[["Spain (born / national)",43],["Maghreb — Morocco · Algeria · Tunisia",43],["Latin America & rest of world",14]],
+    origin_note:"Of the 5,230 people the Ertzaintza detained across the Basque Country in Jan–Sep 2025, 2,266 were Spanish and 2,223 came from the Maghreb — chiefly Morocco and Algeria. Most of the rest were Latin American.",
+    origin_caveat:"Important context: these are detentions across the whole Basque Country — not convictions, and not broken down by neighbourhood. Among the ~23,500 people formally investigated the balance flips, with 57% Basque or Spanish. Detention rates track poverty, young age and irregular status far more than nationality itself.",
+    disc:"Data & method: city-wide 2025 totals (29,696 reported crimes; theft 55.5%; violent robbery −8.85%; cybercrime +10.5%; 3,155 arrests) are from the Ertzaintza and Bilbao Municipal Police balance (Deia, SeguCITY). Detainee origin is the Ertzaintza's first origin report, Jan–Sep 2025 (via Maldita.es and Libertad Digital). Portugalete's +33.4% is Ertzaintza municipal data. Neighbourhood and monthly figures are a transparent model of those official totals — illustrative, not exact counts. Zones are proportional markers at real coordinates, not official boundaries. 'Recent incidents' is a live Google News feed. Basemap © OpenStreetMap, © CARTO.",
+    prev:"prev", peak:"peak", ago_now:"just now", ago_h:"h ago", ago_d:"d ago"
+  },
+  ru:{
+    tagline:"Атлас преступности · Большой Бильбао",
+    ov_h:"Последний месяц — сводка", map_h:"Карта", map_sub:"Скролл · зум · тап по зоне",
+    m_danger:"Риск ночью", m_volume:"Объём", map_hint:"Нажми на квартал",
+    leg_lo:"Спокойно", leg_hi:"Избегать",
+    win_h:"Преступления · скользящая оценка", win_scope:"Большой Бильбао · оценка по годовой норме",
+    win_24:"За 24 часа", win_3d:"За 3 дня", win_wk:"За 7 дней", win_press:"в прессе",
+    wb_h:"По кварталам", win_tap:"нажми для разбивки",
+    live_h:"Последние происшествия", live_sub:"Живой новостной фид",
+    live_24:"24 часа", live_3d:"3 дня", live_wk:"Неделя",
+    live_loading:"Загружаю свежие заголовки…",
+    live_fail:"Сейчас не удалось получить новостной фид. Нажми ⟳ и попробуй снова — нужен интернет.",
+    live_none:"За этот период подходящих заголовков нет. Возьми период подлиннее.",
+    live_note:"Живые заголовки из Google Новостей (преступность и полиция в Бильбао / Бискайе). Это новостная лента, а не официальный полицейский журнал — каждый пункт ведёт на источник.",
+    dyn_h:"Динамика по месяцам", mix_h:"Характер преступности", mix_sub:"12 месяцев · Бильбао",
+    mix_type:"По типам", mix_who:"Кто совершает",
+    rank_h:"Самые опасные зоны", rank_sub:"Нажми на строку — раскроется",
+    nav_over:"Сводка", nav_map:"Карта", nav_live:"Лента", nav_dyn:"Тренд", nav_rank:"Опасность",
+    leg_vol:"Зарегистрировано",
+    kpi_total:"Зарегистрировано", kpi_theft:"Доля краж", kpi_night:"Опаснее всего ночью", kpi_arr:"Задержаний (год)",
+    risk:["Очень высокий","Высокий","Повышенный","Умеренный","Спокойно"],
+    night_safe:"Ночью ходить можно", night_care:"Ночью — с осторожностью", night_avoid:"Ночью лучше избегать",
+    d_incidents:"Преступлений / год", d_share:"Доля от города", d_violent:"Доля насильственных",
+    d_trend:"Тренд за 12 мес.",
+    walk_h:"Что с ночью", type_h:"Структура преступлений", who_h:"Типичные нарушители",
+    chart_unit:"преступлений в месяц",
+    types:{theft:"Кражи и карманники",robbery:"Грабёж с насилием",burglary:"Квартирные кражи",
+      assault:"Драки и нападения",drugs:"Наркопреступления",vandal:"Вандализм",cyber:"Киберпреступления",sex:"Половые преступления"},
+    tap_prompt:"Нажми на любую зону на карте, чтобы открыть досье.",
+    off_stat:["3 155 задержаний в 2025","7 679 под следствием","275 рецидивистов","~55% — кражи"],
+    origin_h:"Происхождение задержанных · Страна Басков, янв–сен 2025",
+    origin:[["Испания (рождение/гражданство)",43],["Магриб — Марокко · Алжир · Тунис",43],["Латинская Америка и остальной мир",14]],
+    origin_note:"Из 5 230 человек, задержанных Эрцайнцей по Стране Басков за январь–сентябрь 2025, 2 266 — испанцы и 2 223 — выходцы из Магриба, прежде всего Марокко и Алжира. Большинство остальных — из Латинской Америки.",
+    origin_caveat:"Важный контекст: это задержания по всей Стране Басков — не приговоры и без разбивки по кварталам. Среди ~23 500 человек, проходящих по делам как подозреваемые, картина обратная: 57% — баски или испанцы. Частота задержаний куда сильнее связана с бедностью, молодым возрастом и нелегальным статусом, чем с самой национальностью.",
+    disc:"Данные и метод: общегородские итоги 2025 (29 696 преступлений; кражи 55,5%; грабёж с насилием −8,85%; киберпреступность +10,5%; 3 155 задержаний) — отчёт Ertzaintza и муниципальной полиции Бильбао (Deia, SeguCITY). Происхождение задержанных — первый отчёт Ertzaintza по происхождению, янв–сен 2025 (Maldita.es, Libertad Digital). Рост Португалете +33,4% — муниципальные данные Ertzaintza. Разбивка по кварталам и месяцам — прозрачная модель этих итогов, иллюстративна. Зоны — пропорциональные маркеры в реальных координатах, не официальные границы. «Последние происшествия» — живая лента Google Новостей. Подложка © OpenStreetMap, © CARTO.",
+    prev:"пред.", peak:"пик", ago_now:"только что", ago_h:"ч назад", ago_d:"дн назад"
+  }
+};
+let LANG = "en";
+
+/* ---------- neighbourhood dataset (ll = real [lat,lng]) ---------- */
+const D = [
+{id:"cascoviejo",muni:"BILBAO",dist:{en:"Ibaiondo",ru:"Ибайондо"},nm:{en:"Casco Viejo",ru:"Каско-Вьехо"},
+ ll:[43.2568,-2.9235],annual:2200,riskN:66,violent:6.4,trend:+1.8,
+ mix:{theft:58,assault:9,robbery:6,vandal:8,drugs:5,burglary:5,cyber:5,sex:4},
+ desc:{en:"The medieval Old Town and the Ribera market — Bilbao's tourist heart, busy from morning until late. The crowds are the problem: pickpockets work the Siete Calles all day, and once the bars empty there are occasional fights around the Calzadas de Mallona.",
+   ru:"Средневековый Старый город и рынок Рибера — туристическое сердце Бильбао, где людно с утра до поздней ночи. Именно толпа и создаёт проблему: карманники весь день работают в Сьете-Кальес, а когда бары пустеют, у Кальсадас-де-Мальона случаются драки."},
+ walk:{en:"Comfortable and lively in the evening. Keep your bag close near La Ribera, and stay aware on the Calzadas de Mallona late at night.",
+   ru:"Вечером спокойно и оживлённо. Держите сумку ближе у Ла-Рибера и будьте внимательны на Кальсадас-де-Мальона поздно ночью."},
+ who:{en:["Pickpockets","After-bar fights","Tourist theft"],ru:["Карманники","Драки у баров","Кражи у туристов"]}},
+
+{id:"sanfrancisco",muni:"BILBAO",dist:{en:"Ibaiondo",ru:"Ибайондо"},nm:{en:"San Francisco",ru:"Сан-Франсиско"},
+ ll:[43.2512,-2.9258],annual:1450,riskN:95,violent:11.5,trend:+2.6,
+ mix:{theft:38,drugs:20,robbery:11,assault:13,vandal:8,burglary:4,sex:3,cyber:3},
+ desc:{en:"Bilbao's most notorious barrio, long nicknamed 'the Bronx of Bilbao'. Drug dealing, street prostitution and fights concentrate here after dark, and it tops every local danger list. Years of regeneration have changed some blocks, but the night-time reputation is still earned.",
+   ru:"Самый скандальный квартал Бильбао, давно прозванный «Бронксом Бильбао». После наступления темноты здесь концентрируются сбыт наркотиков, уличная проституция и драки, и он возглавляет все местные списки опасных мест. Годы реновации изменили часть кварталов, но ночная репутация по-прежнему заслужена."},
+ walk:{en:"Fine to walk through by day, but don't go alone late at night. Stay on the main streets and keep moving.",
+   ru:"Днём пройти можно, но поздно ночью в одиночку — не стоит. Держитесь главных улиц и не задерживайтесь."},
+ who:{en:["Drug-linked groups","Repeat offenders","Street robbery"],ru:["Наркогруппы","Рецидивисты","Уличный грабёж"]}},
+
+{id:"bilbaovieja",muni:"BILBAO",dist:{en:"Ibaiondo",ru:"Ибайондо"},nm:{en:"Bilbao la Vieja",ru:"Бильбао-ла-Вьеха"},
+ ll:[43.2530,-2.9275],annual:900,riskN:80,violent:8.6,trend:+2.0,
+ mix:{theft:44,drugs:16,robbery:9,assault:12,vandal:9,burglary:4,sex:3,cyber:3},
+ desc:{en:"The old riverside quarter right next to San Francisco, now caught between gentrification and its rougher past — new galleries and bars share the streets with recognised trouble spots. The contrast can change from one block to the next.",
+   ru:"Старый прибрежный квартал прямо у Сан-Франсиско, застрявший между джентрификацией и тяжёлым прошлым: новые галереи и бары соседствуют с признанными проблемными точками. Контраст может меняться от квартала к кварталу."},
+ walk:{en:"Take care at night. Some streets are calm and pleasant, others are known hotspots — it pays to know which is which.",
+   ru:"Ночью — осторожно. Одни улицы спокойные и приятные, другие — известные точки; полезно понимать, куда идёшь."},
+ who:{en:["Drug-linked","Opportunists","Street groups"],ru:["Наркосвязанные","Ситуативные","Уличные группы"]}},
+
+{id:"zabala",muni:"BILBAO",dist:{en:"Ibaiondo",ru:"Ибайондо"},nm:{en:"Zabala",ru:"Забала"},
+ ll:[43.2498,-2.9300],annual:700,riskN:78,violent:8.0,trend:+1.6,
+ mix:{theft:45,drugs:15,robbery:8,assault:12,vandal:10,burglary:4,sex:3,cyber:3},
+ desc:{en:"A working-class barrio tucked behind the railway, grouped with San Francisco on the police watch-list. Everyday property crime is common, and drink- and drug-related friction rises at night.",
+   ru:"Рабочий квартал за железной дорогой, который полиция ставит в один ряд с Сан-Франсиско. Обычные имущественные кражи здесь не редкость, а ночью растёт напряжение на почве алкоголя и наркотиков."},
+ walk:{en:"Stick to lit streets at night and avoid the quiet blocks along the tracks.",
+   ru:"Ночью держитесь освещённых улиц и обходите тихие кварталы вдоль путей."},
+ who:{en:["Drug-linked","Local groups","Vandalism"],ru:["Наркосвязанные","Местные группы","Вандализм"]}},
+
+{id:"miribilla",muni:"BILBAO",dist:{en:"Ibaiondo",ru:"Ибайондо"},nm:{en:"Miribilla",ru:"Мирибилья"},
+ ll:[43.2478,-2.9245],annual:500,riskN:30,violent:2.8,trend:-0.4,
+ mix:{theft:56,burglary:12,cyber:12,vandal:7,assault:5,robbery:3,drugs:3,sex:2},
+ desc:{en:"A modern hilltop neighbourhood built on the old mines above the centre, full of new blocks, young families and the Bilbao Arena. Calm and safe — a world away from the barrios just downhill.",
+   ru:"Современный район на холме над центром, выросший на месте старых шахт: новые дома, молодые семьи и арена Бильбао. Спокойно и безопасно — совсем не похоже на кварталы у подножия."},
+ walk:{en:"Safe day and night.",ru:"Безопасно днём и ночью."},
+ who:{en:["Opportunists","Burglary"],ru:["Ситуативные","Домушники"]}},
+
+{id:"atxuri",muni:"BILBAO",dist:{en:"Ibaiondo",ru:"Ибайондо"},nm:{en:"Atxuri",ru:"Атчури"},
+ ll:[43.2548,-2.9185],annual:420,riskN:40,violent:3.6,trend:+0.4,
+ mix:{theft:54,burglary:9,cyber:10,vandal:8,assault:7,robbery:4,drugs:2,sex:2},
+ desc:{en:"A quiet strip along the river by the old Atxuri station and hospital, mostly residential with the sort of everyday theft you'd find anywhere in the city.",
+   ru:"Тихая полоса вдоль реки у старого вокзала Атчури и больницы — в основном жильё и обычные для города бытовые кражи."},
+ walk:{en:"Comfortable at night.",ru:"Ночью комфортно."},
+ who:{en:["Opportunists"],ru:["Ситуативные"]}},
+
+{id:"abandoindautxu",muni:"BILBAO",dist:{en:"Abando",ru:"Абандо"},nm:{en:"Indautxu",ru:"Индаутху"},
+ ll:[43.2620,-2.9370],annual:4200,riskN:44,violent:3.4,trend:-0.4,
+ mix:{theft:66,cyber:12,burglary:6,robbery:4,assault:4,vandal:4,drugs:2,sex:2},
+ desc:{en:"The commercial core around the Indautxu and Moyúa squares — shops, banks and offices. It records the city's highest raw crime count simply because it's the busiest place, but almost all of it is non-violent: pickpocketing and distraction theft in the crowds.",
+   ru:"Коммерческое ядро вокруг площадей Индаутху и Мойуа — магазины, банки, офисы. Здесь самое большое число преступлений в городе просто потому, что это самое людное место, но почти всё — без насилия: карманники и кражи «на отвлечение» в толпе."},
+ walk:{en:"One of the safest areas to walk at night; just the usual caution in busy crowds.",
+   ru:"Один из самых безопасных районов для прогулок ночью; лишь обычная осторожность в плотной толпе."},
+ who:{en:["Organised pickpockets","Distraction teams"],ru:["Организованные карманники","«Отвлекающие» группы"]}},
+
+{id:"moyua",muni:"BILBAO",dist:{en:"Abando",ru:"Абандо"},nm:{en:"Abando · Gran Vía",ru:"Абандо · Гран-Виа"},
+ ll:[43.2605,-2.9290],annual:2600,riskN:42,violent:3.2,trend:-0.3,
+ mix:{theft:67,cyber:12,burglary:5,robbery:4,assault:4,vandal:4,drugs:2,sex:2},
+ desc:{en:"Gran Vía and the main train and metro hub. All that transit and terrace traffic draws pickpockets, but violent crime here is rare.",
+   ru:"Гран-Виа и главный узел вокзалов и метро. Поток пассажиров и посетителей террас притягивает карманников, но насильственные преступления тут редки."},
+ walk:{en:"Very safe at night along the busy avenues.",ru:"Ночью очень безопасно вдоль оживлённых проспектов."},
+ who:{en:["Pickpockets","Opportunists"],ru:["Карманники","Ситуативные"]}},
+
+{id:"ametzola",muni:"BILBAO",dist:{en:"Abando",ru:"Абандо"},nm:{en:"Ametzola",ru:"Аметсола"},
+ ll:[43.2520,-2.9405],annual:1000,riskN:35,violent:2.9,trend:0.0,
+ mix:{theft:58,cyber:11,burglary:9,vandal:7,assault:6,robbery:3,drugs:3,sex:3},
+ desc:{en:"A former rail yard rebuilt with parks and new housing. Calm, residential and easy-going.",
+   ru:"Бывшие железнодорожные пути, застроенные парками и новым жильём. Спокойный, жилой и без напряжения район."},
+ walk:{en:"Safe at night.",ru:"Ночью безопасно."},
+ who:{en:["Opportunists","Burglary"],ru:["Ситуативные","Домушники"]}},
+
+{id:"rekaldeberri",muni:"BILBAO",dist:{en:"Rekalde",ru:"Рекальде"},nm:{en:"Rekaldeberri",ru:"Рекальдеберри"},
+ ll:[43.2455,-2.9470],annual:1600,riskN:58,violent:5.4,trend:+1.2,
+ mix:{theft:52,vandal:11,assault:9,burglary:9,robbery:6,drugs:8,cyber:3,sex:2},
+ desc:{en:"A dense, proud working-class barrio south of the centre. It sees plenty of everyday property crime and a few streets feel neglected after dark, but serious violence is uncommon.",
+   ru:"Плотный рабочий квартал к югу от центра, со своим характером. Здесь хватает бытовых имущественных краж, а часть улиц вечером выглядит запущенно, но серьёзное насилие встречается редко."},
+ walk:{en:"Keep to the lit main streets late and skip the empty underpasses.",
+   ru:"Поздно держитесь освещённых улиц и обходите пустые переходы."},
+ who:{en:["Local opportunists","Youth vandalism","Burglars"],ru:["Местные ситуативные","Молодёжный вандализм","Домушники"]}},
+
+{id:"iralabarri",muni:"BILBAO",dist:{en:"Rekalde",ru:"Рекальде"},nm:{en:"Iralabarri",ru:"Иралабарри"},
+ ll:[43.2492,-2.9425],annual:900,riskN:48,violent:4.2,trend:+0.6,
+ mix:{theft:55,vandal:10,burglary:9,assault:7,robbery:5,drugs:6,cyber:5,sex:3},
+ desc:{en:"A tidy grid of streets between the centre and Rekaldeberri, residential and mostly quiet with routine theft.",
+   ru:"Аккуратная сетка улиц между центром и Рекальдеберри — жилой и в основном тихий район с обычными кражами."},
+ walk:{en:"Generally fine at night.",ru:"Ночью в целом нормально."},
+ who:{en:["Opportunists","Vandalism"],ru:["Ситуативные","Вандализм"]}},
+
+{id:"uretamendi",muni:"BILBAO",dist:{en:"Rekalde",ru:"Рекальде"},nm:{en:"Uretamendi · Larraskitu",ru:"Уретаменди · Ларраскиту"},
+ ll:[43.2405,-2.9500],annual:700,riskN:55,violent:5.0,trend:+0.9,
+ mix:{theft:50,vandal:12,burglary:10,assault:8,robbery:5,drugs:7,cyber:5,sex:3},
+ desc:{en:"Steep, partly self-built barrios clinging to the southern hillside. They're quiet, but isolated and poorly lit once night falls.",
+   ru:"Крутые, отчасти самостроевые кварталы на южном склоне. Они тихие, но изолированные и плохо освещённые, как только темнеет."},
+ walk:{en:"Deserted and dark late — few people about, so go with care.",
+   ru:"Поздно пустынно и темно — людей мало, поэтому будьте осторожны."},
+ who:{en:["Opportunists","Burglary"],ru:["Ситуативные","Домушники"]}},
+
+{id:"basurto",muni:"BILBAO",dist:{en:"Basurto-Zorroza",ru:"Басурто-Сорроса"},nm:{en:"Basurto",ru:"Басурто"},
+ ll:[43.2600,-2.9500],annual:1200,riskN:45,violent:4.0,trend:+0.2,
+ mix:{theft:57,cyber:8,burglary:8,vandal:8,assault:7,robbery:5,drugs:4,sex:3},
+ desc:{en:"The area around the big Basurto hospital and the San Mamés stadium. Busy and mostly safe, with everyday theft that spikes on match days.",
+   ru:"Район вокруг большой больницы Басурто и стадиона Сан-Мамес. Оживлённый и в основном безопасный, с бытовыми кражами, которые растут в дни матчей."},
+ walk:{en:"Fine at night around the lit, busy areas.",ru:"Ночью нормально в освещённых людных местах."},
+ who:{en:["Opportunists","Matchday theft"],ru:["Ситуативные","Кражи в дни матчей"]}},
+
+{id:"olabeaga",muni:"BILBAO",dist:{en:"Basurto-Zorroza",ru:"Басурто-Сорроса"},nm:{en:"Olabeaga",ru:"Олабеага"},
+ ll:[43.2668,-2.9560],annual:600,riskN:42,violent:3.8,trend:+0.2,
+ mix:{theft:54,burglary:9,vandal:9,cyber:8,assault:7,robbery:4,drugs:4,sex:3},
+ desc:{en:"A former dockworkers' village that still hugs the river below Deusto. It's quiet and residential, and the old wharves empty out after dark.",
+   ru:"Бывший посёлок портовых рабочих, до сих пор жмущийся к реке ниже Деусто. Тихий, жилой район, где старые причалы к ночи пустеют."},
+ walk:{en:"Calm; the riverfront just goes empty late.",ru:"Спокойно; просто набережная поздно пустеет."},
+ who:{en:["Opportunists"],ru:["Ситуативные"]}},
+
+{id:"zorroza",muni:"BILBAO",dist:{en:"Basurto-Zorroza",ru:"Басурто-Сорроса"},nm:{en:"Zorroza",ru:"Сорроса"},
+ ll:[43.2790,-2.9800],annual:900,riskN:52,violent:4.6,trend:+0.5,
+ mix:{theft:52,burglary:10,vandal:10,assault:7,cyber:6,robbery:5,drugs:6,sex:3},
+ desc:{en:"Bilbao's industrial far-western edge, half warehouses and half housing. Few people are about at night, and most crime here is warehouse and vehicle theft rather than street trouble.",
+   ru:"Промышленная западная окраина Бильбао, наполовину склады, наполовину жильё. Ночью людей мало, и преступность здесь — это скорее кражи со складов и из машин, чем уличные проблемы."},
+ walk:{en:"The industrial stretches are empty and dark late — not dangerous, just deserted.",
+   ru:"Промышленные участки поздно пусты и темны — не опасно, просто безлюдно."},
+ who:{en:["Warehouse burglary","Vehicle theft"],ru:["Кражи со складов","Кражи из машин"]}},
+
+{id:"uribarri",muni:"BILBAO",dist:{en:"Uribarri",ru:"Урибарри"},nm:{en:"Uribarri",ru:"Урибарри"},
+ ll:[43.2685,-2.9270],annual:900,riskN:36,violent:3.0,trend:-0.5,
+ mix:{theft:54,cyber:12,burglary:11,vandal:7,assault:5,robbery:3,drugs:4,sex:4},
+ desc:{en:"Residential slopes climbing north from the river, served by the Artxanda funicular. Quiet, with little violence and the odd burglary.",
+   ru:"Жилые склоны, поднимающиеся к северу от реки, куда ходит фуникулёр Артксанда. Тихо, насилия мало, изредка квартирные кражи."},
+ walk:{en:"Safe and residential at night.",ru:"Ночью безопасно и по-домашнему."},
+ who:{en:["Burglars","Opportunists"],ru:["Домушники","Ситуативные"]}},
+
+{id:"matiko",muni:"BILBAO",dist:{en:"Uribarri",ru:"Урибарри"},nm:{en:"Matiko · Ciudad Jardín",ru:"Матико · Сьюдад-Хардин"},
+ ll:[43.2652,-2.9300],annual:700,riskN:38,violent:3.2,trend:-0.2,
+ mix:{theft:55,cyber:11,burglary:10,vandal:7,assault:6,robbery:4,drugs:4,sex:3},
+ desc:{en:"Leafy garden-city slopes near the Deusto bridge. Calm streets where burglary and everyday theft are the main concerns.",
+   ru:"Зелёные склоны города-сада у моста Деусто. Спокойные улицы, где главные заботы — квартирные и бытовые кражи."},
+ walk:{en:"Fine at night.",ru:"Ночью нормально."},
+ who:{en:["Burglars"],ru:["Домушники"]}},
+
+{id:"zurbaran",muni:"BILBAO",dist:{en:"Uribarri",ru:"Урибарри"},nm:{en:"Zurbaranbarri · Castaños",ru:"Сурбаранбарри · Кастаньос"},
+ ll:[43.2720,-2.9250],annual:500,riskN:32,violent:2.8,trend:-0.4,
+ mix:{theft:54,cyber:12,burglary:11,vandal:7,assault:5,robbery:3,drugs:4,sex:4},
+ desc:{en:"Upper residential slopes reaching toward Artxanda — quiet family blocks with very little street crime.",
+   ru:"Верхние жилые склоны в сторону Артксанды — тихие семейные дома, где уличной преступности почти нет."},
+ walk:{en:"Safe.",ru:"Безопасно."},
+ who:{en:["Burglars"],ru:["Домушники"]}},
+
+{id:"santutxu",muni:"BILBAO",dist:{en:"Begoña",ru:"Бегонья"},nm:{en:"Santutxu",ru:"Сантутху"},
+ ll:[43.2530,-2.9140],annual:1000,riskN:42,violent:3.6,trend:+0.5,
+ mix:{theft:55,cyber:10,burglary:9,vandal:9,assault:7,robbery:4,drugs:4,sex:2},
+ desc:{en:"One of the most densely populated neighbourhoods in Europe — a lively, self-sufficient town within the city. It stays busy late and is largely safe, with the routine theft that comes with the crowds.",
+   ru:"Один из самых плотнонаселённых кварталов Европы — живой, самодостаточный «город в городе». Он допоздна оживлён и в целом безопасен, с обычными для людных мест кражами."},
+ walk:{en:"Comfortable; it stays busy well into the night.",ru:"Комфортно; здесь людно до глубокой ночи."},
+ who:{en:["Opportunists","Youth vandalism"],ru:["Ситуативные","Молодёжный вандализм"]}},
+
+{id:"begona",muni:"BILBAO",dist:{en:"Begoña",ru:"Бегонья"},nm:{en:"Begoña",ru:"Бегонья"},
+ ll:[43.2580,-2.9200],annual:500,riskN:34,violent:3.0,trend:+0.2,
+ mix:{theft:54,cyber:11,burglary:9,vandal:9,assault:6,robbery:3,drugs:4,sex:4},
+ desc:{en:"The slopes around the Begoña basilica above the old town — residential, green and quiet.",
+   ru:"Склоны вокруг базилики Бегонья над старым городом — жилые, зелёные и тихие."},
+ walk:{en:"Safe at night.",ru:"Ночью безопасно."},
+ who:{en:["Opportunists"],ru:["Ситуативные"]}},
+
+{id:"bolueta",muni:"BILBAO",dist:{en:"Begoña",ru:"Бегонья"},nm:{en:"Bolueta",ru:"Болуэта"},
+ ll:[43.2490,-2.9055],annual:400,riskN:44,violent:3.8,trend:+0.6,
+ mix:{theft:52,vandal:11,burglary:9,cyber:8,assault:7,robbery:5,drugs:5,sex:3},
+ desc:{en:"The eastern gateway by the metro, where old factories meet new residential towers. Everyday crime is moderate and mostly petty.",
+   ru:"Восточные ворота у метро, где старые заводы соседствуют с новыми жилыми башнями. Бытовая преступность умеренная и в основном мелкая."},
+ walk:{en:"Fine; the industrial edges just fall quiet late.",ru:"Нормально; промышленные края поздно просто затихают."},
+ who:{en:["Opportunists","Vandalism"],ru:["Ситуативные","Вандализм"]}},
+
+{id:"otxarkoaga",muni:"BILBAO",dist:{en:"Otxarkoaga-Txurdinaga",ru:"Отксаркоага-Тчурдинага"},nm:{en:"Otxarkoaga",ru:"Отксаркоага"},
+ ll:[43.2650,-2.9010],annual:1150,riskN:70,violent:6.6,trend:+1.7,
+ mix:{theft:44,drugs:13,vandal:12,assault:10,robbery:7,burglary:7,cyber:5,sex:2},
+ desc:{en:"A 1960s social-housing estate up on the northern hills, long the district's hardest corner. Drug- and youth-related incidents keep it near the top of the danger list, and its tough reputation has stuck for decades.",
+   ru:"Район соцжилья 1960-х на северных холмах, давно самый тяжёлый угол округа. Инциденты, связанные с наркотиками и молодёжью, держат его у вершины списка опасности, а тяжёлая репутация тянется десятилетиями."},
+ walk:{en:"Keep to the main streets at night and avoid the isolated blocks.",
+   ru:"Ночью держитесь главных улиц и обходите глухие кварталы."},
+ who:{en:["Drug-linked groups","Local youth groups","Vandalism"],ru:["Наркогруппы","Местные молодёжные группы","Вандализм"]}},
+
+{id:"txurdinaga",muni:"BILBAO",dist:{en:"Otxarkoaga-Txurdinaga",ru:"Отксаркоага-Тчурдинага"},nm:{en:"Txurdinaga",ru:"Тчурдинага"},
+ ll:[43.2600,-2.9085],annual:746,riskN:32,violent:2.9,trend:-0.2,
+ mix:{theft:56,cyber:11,burglary:10,vandal:7,assault:5,robbery:3,drugs:4,sex:4},
+ desc:{en:"The planned, comfortable middle-class half of the district right next to Otxarkoaga — parks, wide avenues and a completely different, calm feel.",
+   ru:"Спланированная, комфортная часть округа для среднего класса прямо рядом с Отксаркоагой — парки, широкие проспекты и совершенно другая, спокойная атмосфера."},
+ walk:{en:"Safe at night.",ru:"Ночью безопасно."},
+ who:{en:["Opportunists"],ru:["Ситуативные"]}},
+
+{id:"deusto",muni:"BILBAO",dist:{en:"Deusto",ru:"Деусто"},nm:{en:"Deusto · San Pedro",ru:"Деусто · Сан-Педро"},
+ ll:[43.2720,-2.9450],annual:1100,riskN:44,violent:3.9,trend:-0.2,
+ mix:{theft:57,cyber:9,burglary:8,vandal:8,assault:8,robbery:4,drugs:4,sex:2},
+ desc:{en:"The university barrio across the river, young and full of nightlife. It's mostly about theft, plus the occasional late scuffle when the bars close.",
+   ru:"Университетский квартал за рекой, молодой и полный ночной жизни. В основном это кражи плюс редкие поздние потасовки, когда закрываются бары."},
+ walk:{en:"Busy with students at night; the usual caution around closing time.",
+   ru:"Ночью много студентов; обычная осторожность к закрытию баров."},
+ who:{en:["Opportunists","After-bar incidents"],ru:["Ситуативные","Инциденты у баров"]}},
+
+{id:"sanignacio",muni:"BILBAO",dist:{en:"Deusto",ru:"Деусто"},nm:{en:"San Ignacio",ru:"Сан-Игнасио"},
+ ll:[43.2760,-2.9520],annual:900,riskN:46,violent:4.1,trend:-0.1,
+ mix:{theft:56,cyber:9,burglary:8,vandal:9,assault:7,robbery:5,drugs:4,sex:2},
+ desc:{en:"Dense post-war housing blocks by the metro. A residential barrio with moderate property crime and some vandalism.",
+   ru:"Плотная послевоенная застройка у метро. Жилой квартал с умеренными имущественными кражами и вандализмом."},
+ walk:{en:"Fine; keep to the main streets late.",ru:"Нормально; поздно держитесь главных улиц."},
+ who:{en:["Opportunists","Vandalism"],ru:["Ситуативные","Вандализм"]}},
+
+{id:"ibarrekolanda",muni:"BILBAO",dist:{en:"Deusto",ru:"Деусто"},nm:{en:"Ibarrekolanda",ru:"Ибарреколанда"},
+ ll:[43.2742,-2.9490],annual:500,riskN:40,violent:3.5,trend:-0.2,
+ mix:{theft:57,cyber:10,burglary:9,vandal:8,assault:6,robbery:4,drugs:3,sex:3},
+ desc:{en:"A quiet residential pocket between Deusto and San Ignacio, with low-key everyday crime.",
+   ru:"Тихий жилой карман между Деусто и Сан-Игнасио со спокойной бытовой преступностью."},
+ walk:{en:"Safe at night.",ru:"Ночью безопасно."},
+ who:{en:["Opportunists"],ru:["Ситуативные"]}},
+
+{id:"arangoiti",muni:"BILBAO",dist:{en:"Deusto",ru:"Деусто"},nm:{en:"Arangoiti",ru:"Арангоити"},
+ ll:[43.2792,-2.9560],annual:400,riskN:44,violent:3.9,trend:0.0,
+ mix:{theft:53,vandal:11,burglary:10,cyber:8,assault:7,robbery:4,drugs:4,sex:3},
+ desc:{en:"A hillside estate above Deusto, a little cut off from the rest. Quiet overall, though the upper streets are poorly lit.",
+   ru:"Район на склоне над Деусто, немного отрезанный от остального. В целом тихо, хотя верхние улицы плохо освещены."},
+ walk:{en:"Take care on the dark upper streets late.",ru:"Осторожно на тёмных верхних улицах поздно."},
+ who:{en:["Opportunists","Burglary"],ru:["Ситуативные","Домушники"]}},
+
+{id:"barakaldo",muni:"GRAN BILBAO",dist:{en:"Left bank",ru:"Левый берег"},nm:{en:"Barakaldo",ru:"Баракальдо"},
+ ll:[43.2960,-2.9880],annual:6200,riskN:55,violent:4.9,trend:+1.0,
+ mix:{theft:57,cyber:8,burglary:8,vandal:8,assault:7,robbery:5,drugs:5,sex:2},
+ desc:{en:"The metro area's biggest town, a former steel centre rebuilt around the Megapark and Ansio. Its crime total tracks its size — mostly property crime, with some night-time friction near the nightlife zones.",
+   ru:"Крупнейший город агломерации, бывший металлургический центр, перестроенный вокруг Megapark и Ансио. Число преступлений пропорционально размеру — в основном имущественные, местами ночные трения у зон досуга."},
+ walk:{en:"Reasonably safe; a little caution on the quiet industrial fringes late.",
+   ru:"Достаточно безопасно; немного осторожности поздно на тихих промзонах."},
+ who:{en:["Opportunists","Burglars","Youth groups"],ru:["Ситуативные","Домушники","Молодёжные группы"]}},
+
+{id:"sestao",muni:"GRAN BILBAO",dist:{en:"Left bank",ru:"Левый берег"},nm:{en:"Sestao",ru:"Сестао"},
+ ll:[43.3090,-3.0070],annual:1700,riskN:60,violent:5.8,trend:+1.4,
+ mix:{theft:50,vandal:11,burglary:9,assault:9,drugs:7,robbery:7,cyber:5,sex:2},
+ desc:{en:"A small, dense former industrial town on the left bank. Its post-industrial decline shows on some streets, and everyday crime runs high for its size — though it's not a place tourists pass through.",
+   ru:"Небольшой плотный бывший промышленный город на левом берегу. Постиндустриальный упадок заметен на части улиц, а бытовая преступность высока для его размера — хотя туристы сюда обычно не заходят."},
+ walk:{en:"Keep to the main, lit streets at night.",ru:"Ночью держитесь главных освещённых улиц."},
+ who:{en:["Local opportunists","Vandalism","Drug-linked"],ru:["Местные ситуативные","Вандализм","Наркосвязанные"]}},
+
+{id:"portugalete",muni:"GRAN BILBAO",dist:{en:"Left bank",ru:"Левый берег"},nm:{en:"Portugalete",ru:"Португалете"},
+ ll:[43.3200,-3.0190],annual:2615,riskN:57,violent:5.2,trend:+33.4,
+ mix:{theft:56,burglary:8,vandal:8,assault:8,cyber:7,robbery:6,drugs:5,sex:2},
+ desc:{en:"A historic town beside the UNESCO Hanging Bridge. It saw the sharpest crime rise in all of Bizkaia in 2025 — up 33.4%, from 1,960 to 2,615 cases — which pushed it up the watch-list, even though the old quarter stays pleasant by day.",
+   ru:"Исторический город у подвесного моста ЮНЕСКО. В 2025-м здесь был самый резкий рост преступности во всей Бискайе — на 33,4%, с 1 960 до 2 615 случаев, — что подняло его в списке риска, хотя старый квартал днём остаётся приятным."},
+ walk:{en:"Fine by day; a bit more caution late given the recent spike.",
+   ru:"Днём нормально; поздно — чуть осторожнее из-за недавнего всплеска."},
+ who:{en:["Opportunists","Property crime","Youth groups"],ru:["Ситуативные","Имущественные","Молодёжные группы"]}},
+
+{id:"santurtzi",muni:"GRAN BILBAO",dist:{en:"Left bank",ru:"Левый берег"},nm:{en:"Santurtzi",ru:"Сантурци"},
+ ll:[43.3285,-3.0320],annual:1800,riskN:48,violent:4.2,trend:+0.8,
+ mix:{theft:57,burglary:9,vandal:9,cyber:8,assault:6,robbery:4,drugs:5,sex:2},
+ desc:{en:"The fishing port at the mouth of the estuary, famous for its sardines. Largely residential and middling on crime — the usual mix for a mid-sized Basque town.",
+   ru:"Рыбацкий порт в устье эстуария, знаменитый сардинами. В основном жилой, с средним уровнем преступности — обычный набор для среднего баскского города."},
+ walk:{en:"Comfortable; the usual caution near the port late.",ru:"Комфортно; обычная осторожность у порта поздно."},
+ who:{en:["Opportunists","Burglars"],ru:["Ситуативные","Домушники"]}},
+
+{id:"algorta",muni:"GRAN BILBAO",dist:{en:"Getxo · right bank",ru:"Хетчо · правый берег"},nm:{en:"Getxo · Algorta",ru:"Хетчо · Алгорта"},
+ ll:[43.3480,-3.0090],annual:1700,riskN:24,violent:2.5,trend:-0.5,
+ mix:{theft:58,burglary:14,cyber:12,vandal:6,assault:4,robbery:2,drugs:2,sex:2},
+ desc:{en:"An affluent seaside town of beaches, cliffs and the old port. This is the safest corner of Greater Bilbao — the main risk here is a break-in at an empty home, not street crime.",
+   ru:"Состоятельный приморский город с пляжами, скалами и старым портом. Это самый безопасный угол Большого Бильбао — главный риск здесь взлом пустого дома, а не уличная преступность."},
+ walk:{en:"Very safe day and night.",ru:"Очень безопасно днём и ночью."},
+ who:{en:["Home burglary","Opportunists"],ru:["Домушники","Ситуативные"]}},
+
+{id:"lasarenas",muni:"GRAN BILBAO",dist:{en:"Getxo · right bank",ru:"Хетчо · правый берег"},nm:{en:"Getxo · Las Arenas",ru:"Хетчо · Лас-Аренас"},
+ ll:[43.3350,-3.0180],annual:1400,riskN:22,violent:2.3,trend:-0.5,
+ mix:{theft:59,burglary:14,cyber:12,vandal:5,assault:3,robbery:2,drugs:2,sex:3},
+ desc:{en:"Elegant villas at the right-bank end of the Hanging Bridge. Quiet, well-off and very safe.",
+   ru:"Элегантные виллы у правого конца подвесного моста. Тихо, обеспеченно и очень безопасно."},
+ walk:{en:"Very safe at night.",ru:"Ночью очень безопасно."},
+ who:{en:["Home burglary"],ru:["Домушники"]}},
+
+{id:"leioa",muni:"GRAN BILBAO",dist:{en:"Right bank",ru:"Правый берег"},nm:{en:"Leioa",ru:"Лейоа"},
+ ll:[43.3280,-2.9880],annual:1300,riskN:28,violent:2.8,trend:-0.2,
+ mix:{theft:55,burglary:11,cyber:12,vandal:8,assault:5,robbery:3,drugs:4,sex:2},
+ desc:{en:"A green residential town built around the University of the Basque Country campus. Young, calm and safe, with mostly minor theft and the odd stolen bike.",
+   ru:"Зелёный жилой город вокруг кампуса Университета Страны Басков. Молодой, спокойный и безопасный, с мелкими кражами и изредка угнанным велосипедом."},
+ walk:{en:"Safe at night.",ru:"Ночью безопасно."},
+ who:{en:["Opportunists","Bike theft"],ru:["Ситуативные","Кражи велосипедов"]}},
+
+{id:"erandio",muni:"GRAN BILBAO",dist:{en:"Right bank",ru:"Правый берег"},nm:{en:"Erandio",ru:"Эрандио"},
+ ll:[43.3020,-2.9720],annual:900,riskN:40,violent:3.9,trend:+0.6,
+ mix:{theft:52,vandal:11,burglary:10,cyber:9,assault:7,robbery:4,drugs:5,sex:2},
+ desc:{en:"A stretched-out riverside municipality between Bilbao and the airport, part residential and part industrial. Overall crime is low, but the industrial stretches go quiet and empty at night.",
+   ru:"Растянутый вдоль реки муниципалитет между Бильбао и аэропортом, частью жилой, частью промышленный. Общая преступность низкая, но промышленные участки к ночи затихают и пустеют."},
+ walk:{en:"Quiet; the industrial areas empty out late.",ru:"Тихо; промзоны поздно пустеют."},
+ who:{en:["Opportunists","Warehouse burglary"],ru:["Ситуативные","Кражи со складов"]}}
+];
+
+const CITY_MIX = [
+  {k:"theft", pct:55.5}, {k:"cyber", pct:16.2}, {k:"robbery", pct:4.6},
+  {k:"assault", pct:7.0}, {k:"burglary", pct:6.4}, {k:"vandal", pct:5.3},
+  {k:"drugs", pct:3.4}, {k:"sex", pct:1.6}
+];
+const CITY_TOTAL = 29696, ARRESTS = 3155;
+
+const MONTHS = [];
+(function(){ const base=new Date(2025,6,1);
+  for(let i=0;i<12;i++){ const d=new Date(base.getFullYear(),base.getMonth()+i,1);
+    MONTHS.push({y:d.getFullYear(),m:d.getMonth()}); } })();
+const MNAME = {
+  en:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
+  ru:["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"]
+};
+const SEASON = [0.92,0.88,0.95,0.98,1.03,1.06,1.14,1.22,1.05,1.0,0.97,1.10];
+function seeded(n){ let x=Math.sin(n*127.1+31.7)*43758.5453; return x-Math.floor(x); }
+function monthlyFor(annual, trend, salt){
+  const avg=annual/12;
+  return MONTHS.map((mo,i)=>{ const s=SEASON[mo.m];
+    const tr=1+(trend/100)*((i-5.5)/12);
+    const noise=0.90+seeded(i*7+salt)*0.20;
+    return Math.round(avg*s*tr*noise); });
+}
+D.forEach((d,idx)=>{ d.monthly=monthlyFor(d.annual,d.trend,idx*13+3); });
+const CITY_MONTHLY = MONTHS.map((_,i)=> D.filter(d=>d.muni==="BILBAO").reduce((a,d)=>a+d.monthly[i],0));
+const METRO_ANNUAL = D.reduce((a,d)=>a+d.annual,0);
+function winEstimate(days){
+  const now=new Date();
+  const doy=Math.floor((now-new Date(now.getFullYear(),0,0))/86400000);
+  const season=SEASON[now.getMonth()];
+  const daily=METRO_ANNUAL/365*season;
+  let sum=0;
+  for(let k=0;k<days;k++){ const j=0.82+seeded(doy-k+days*37)*0.36; sum+=daily*j; }
+  return Math.round(sum);
+}
+function pressCount(days){
+  if(!liveItems) return null;
+  const now=Date.now(), ms=days*86400000;
+  return liveItems.filter(x=>(now-x.date.getTime())<=ms && (now-x.date.getTime())>=-3600000).length;
+}
+let winOpen=null;
+function renderWindows(){
+  const box=document.getElementById("winstrip"); if(!box)return;
+  const wins=[[1,"win_24"],[3,"win_3d"],[7,"win_wk"]];
+  box.innerHTML=`<div class="win-h"><span class="wt">${t("win_h")}</span><span class="wsc">${t("win_scope")}</span></div>
+    <div class="wincards">`+wins.map(([days,k])=>{
+      const est=winEstimate(days), pc=pressCount(days);
+      return `<div class="wincard ${winOpen===days?'on':''}" onclick="winTap(${days})">
+        <span class="wtap">${winOpen===days?'▲':'▾'}</span>
+        <div class="wv">${fmt(est)}</div><div class="wl">${t(k)}</div>
+        <div class="wp">${pc==null?"&nbsp;":"● "+pc+" "+t("win_press")}</div></div>`;
+    }).join("")+`</div>`;
+}
+function winTap(days){ winOpen = (winOpen===days ? null : days); renderWindows(); renderWinBreak(); }
+function winZoneEst(d, days){ return Math.round(winEstimate(days) * d.annual / METRO_ANNUAL); }
+function renderWinBreak(){
+  const box=document.getElementById("winbreak"); if(!box)return;
+  if(!winOpen){ box.innerHTML=""; return; }
+  const days=winOpen;
+  const label = days===1?t("win_24") : days===3?t("win_3d") : t("win_wk");
+  const rows=D.map(d=>({d, c:winZoneEst(d,days)})).sort((a,b)=>b.c-a.c);
+  const max=rows[0].c||1;
+  box.innerHTML=`<div class="card">
+    <div class="win-h" style="margin-bottom:6px"><span class="wt">${t("wb_h")} · ${label}</span><span class="wsc">${t("win_scope")}</span></div>
+    <div class="wbrows">`+rows.map(r=>{
+      const rc=riskLabelColor(riskLabelIdx(r.d.riskN));
+      return `<div class="wbrow" onclick="selectD('${r.d.id}')">
+        <div class="wbn">${r.d.nm[LANG]}<small>${r.d.muni} · ${r.d.dist[LANG]}</small></div>
+        <div class="wbbar"><div style="width:${Math.round(r.c/max*100)}%;background:${rc}"></div></div>
+        <div class="wbc">${fmt(r.c)}</div></div>`;
+    }).join("")+`</div></div>`;
+}
+
+function riskColor(r){
+  const t=Math.max(0,Math.min(1,r/100));
+  const stops=[[74,80,86],[122,10,18],[193,18,31],[255,33,48]];
+  const seg=t*3, i=Math.min(2,Math.floor(seg)), f=seg-i;
+  const a=stops[i],b=stops[i+1];
+  const c=a.map((v,j)=>Math.round(v+(b[j]-v)*f));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+const VMAX = Math.max(...D.map(d=>d.annual));
+function volColor(v){ return riskColor((v/VMAX)*100*0.92); }
+function zoneRadius(d){ return Math.round(130 + 5*Math.sqrt(d.annual)); }
+function riskLabelIdx(r){ if(r>=80)return 0; if(r>=58)return 1; if(r>=45)return 2; if(r>=32)return 3; return 4; }
+function riskLabelColor(idx){ return ["#e01020","#c1121f","#b5541f","#8a8f96","#7fb08a"][idx]; }
+function nightClass(r){ if(r>=58)return{txt:"night_avoid",dot:"#e01020",bg:"#1e0f11"};
+  if(r>=42)return{txt:"night_care",dot:"#c98a1f",bg:"#1c1a12"};
+  return{txt:"night_safe",dot:"#7fb08a",bg:"#111c14"}; }
+const t=(k)=>I18N[LANG][k];
+const fmt=(n)=> n.toLocaleString(LANG==="ru"?"ru-RU":"en-US");
+
+/* ---------- Leaflet map — proportional circle markers ---------- */
+let map, mapMode="danger", selId=null;
+const layers={};
+const HOME={center:[43.290,-2.965], zoom:12};
+
+function initMap(){
+  map=L.map("map",{zoomControl:true, attributionControl:true, minZoom:11, maxZoom:17,
+    center:HOME.center, zoom:HOME.zoom});
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{
+    subdomains:"abcd", maxZoom:19, attribution:'© OpenStreetMap · © CARTO'
+  }).addTo(map);
+  map.attributionControl.setPrefix("");
+  D.forEach(d=>{
+    const fill = mapMode==="danger"?riskColor(d.riskN):volColor(d.annual);
+    const shape=L.circle(d.ll,{radius:zoneRadius(d), color:"#0a0a0c", weight:1.2, opacity:.85,
+      fillColor:fill, fillOpacity:.55});
+    shape.on("click",()=>selectD(d.id));
+    shape.on("mouseover",()=>{ if(d.id!==selId) shape.setStyle({weight:2.4, color:"#f2f2f0"}); });
+    shape.on("mouseout",()=>{ if(d.id!==selId) shape.setStyle({weight:1.2, color:"#0a0a0c"}); });
+    shape.addTo(map);
+    const lb=L.tooltip({permanent:true, direction:"center", className:"zlabel", opacity:1})
+      .setContent(d.nm[LANG]).setLatLng(d.ll);
+    lb.addTo(map);
+    layers[d.id]={shape, label:lb};
+  });
+  map.on("zoomend", updateLabelVisibility);
+  updateLabelVisibility();
+}
+function updateLabelVisibility(){
+  document.getElementById("map").classList.toggle("map-lo", map.getZoom()<13);
+}
+function paintMap(){
+  D.forEach(d=>{ const L0=layers[d.id]; if(!L0)return;
+    L0.shape.setStyle({fillColor: mapMode==="danger"?riskColor(d.riskN):volColor(d.annual)}); });
+  restyleSelection();
+}
+function restyleSelection(){
+  D.forEach(d=>{ const L0=layers[d.id]; if(!L0)return;
+    const sel=d.id===selId;
+    L0.shape.setStyle({weight:sel?3:1.2, color:sel?"#ffffff":"#0a0a0c", fillOpacity:sel?.78:.55});
+    const el=L0.label.getElement(); if(el) el.classList.toggle("sel",sel);
+    if(sel) L0.shape.bringToFront();
+  });
+}
+function resetView(){ map.setView(HOME.center, HOME.zoom); }
+
+/* ---------- selection & detail ---------- */
+function selectD(id, scroll){ selId=id; restyleSelection(); renderDetail(); drawRank();
+  const d=D.find(x=>x.id===id);
+  if(map && d) map.panTo(d.ll,{animate:true});
+  if(scroll!==false) document.getElementById("detail").scrollIntoView({behavior:"smooth",block:"center"});
+}
+function statBlock(d){
+  const nc=nightClass(d.riskN);
+  const share=(d.annual/CITY_TOTAL*100);
+  const mixArr=Object.entries(d.mix).sort((a,b)=>b[1]-a[1]);
+  const maxMix=mixArr[0][1];
+  const trendTxt=(d.trend>=0?"+":"")+d.trend.toFixed(1)+"%";
+  const sid="spark_"+d.id;
+  setTimeout(()=>drawSparkEl(sid,d.monthly),0);
+  return `
+    <div class="night" style="background:${nc.bg}">
+      <span class="dot" style="background:${nc.dot}"></span><span class="txt">${t(nc.txt)}</span></div>
+    <div class="grid2">
+      <div>
+        <div class="stat-row"><span class="k">${t("d_incidents")}</span><span class="v">${fmt(d.annual)}</span></div>
+        <div class="stat-row"><span class="k">${t("d_share")}</span><span class="v">${share.toFixed(1)}%</span></div>
+        <div class="stat-row"><span class="k">${t("d_violent")}</span><span class="v">${d.violent.toFixed(1)}%</span></div>
+        <div class="stat-row"><span class="k">${t("d_trend")}</span><span class="v ${d.trend>=0?'up':'down'}">${trendTxt}</span></div>
+        <div class="mini-label" style="margin-top:14px">${t("type_h")}</div>
+        ${mixArr.slice(0,6).map(([k,v])=>`
+          <div class="tbar"><div class="r"><span>${I18N[LANG].types[k]}</span><span>${v}%</span></div>
+          <div class="track"><div class="fill" style="width:${Math.round(v/maxMix*100)}%"></div></div></div>`).join("")}
+      </div>
+      <div>
+        <p class="p">${d.desc[LANG]}</p>
+        <div class="mini-label" style="margin-top:14px">${t("walk_h")}</div>
+        <p class="p">${d.walk[LANG]}</p>
+        <div class="mini-label" style="margin-top:14px">${t("who_h")}</div>
+        <div class="chips">${d.who[LANG].map(w=>`<span class="chip">${w}</span>`).join("")}</div>
+        <div class="mini-label" style="margin-top:16px">${t("d_trend")} · ${t("chart_unit")}</div>
+        <svg viewBox="0 0 340 130" class="chart-svg" id="${sid}"></svg>
+      </div>
+    </div>`;
+}
+function renderDetail(){
+  const box=document.getElementById("detail");
+  if(!selId){ box.innerHTML=`<div class="body"><div class="p" style="text-align:center;color:var(--grey)">${t("tap_prompt")}</div></div>`; return; }
+  const d=D.find(x=>x.id===selId);
+  const ri=riskLabelIdx(d.riskN), rc=riskLabelColor(ri);
+  box.innerHTML=`
+    <div class="top">
+      <div style="flex:1">
+        <div class="muni">${d.muni} · ${d.dist[LANG]}</div>
+        <h3>${d.nm[LANG]}</h3>
+      </div>
+      <span class="risk-badge" style="background:${rc}22;border:1px solid ${rc};color:${rc}">${t("risk")[ri]}</span>
+    </div>
+    <div class="body">${statBlock(d)}</div>`;
+}
+function drawSparkEl(elId, series){
+  const el=document.getElementById(elId); if(!el)return;
+  const W=340,H=130,L=34,R=10,T=14,B=22;
+  const max=Math.max(...series), min=Math.min(...series);
+  const pad=Math.max(2,Math.round((max-min)*0.15))||2;
+  const hi=max+pad, lo=Math.max(0,min-pad);
+  const x=i=>L+i*(W-L-R)/(series.length-1);
+  const y=v=>T+(1-(v-lo)/(hi-lo||1))*(H-T-B);
+  let g=`<defs><linearGradient id="sp" x1="0" y1="0" x2="0" y2="1">
+     <stop offset="0" stop-color="#c1121f" stop-opacity=".45"/><stop offset="1" stop-color="#c1121f" stop-opacity="0"/></linearGradient></defs>`;
+  [hi,(hi+lo)/2,lo].forEach(val=>{ const gy=y(val);
+    g+=`<line class="gline" x1="${L}" y1="${gy}" x2="${W-R}" y2="${gy}"/>
+        <text class="alabel" x="${L-5}" y="${gy+3}" text-anchor="end">${fmt(Math.round(val))}</text>`; });
+  const area=`M${x(0)},${H-B} L`+series.map((v,i)=>`${x(i)},${y(v)}`).join(" L")+` L${x(series.length-1)},${H-B} Z`;
+  g+=`<path d="${area}" fill="url(#sp)"/>`;
+  g+=`<polyline points="${series.map((v,i)=>`${x(i)},${y(v)}`).join(" ")}" fill="none" stroke="#e01020" stroke-width="2"/>`;
+  series.forEach((v,i)=>{ if(i%2===0) g+=`<text class="alabel" x="${x(i)}" y="${H-6}" text-anchor="middle">${MNAME[LANG][MONTHS[i].m]}</text>`; });
+  const last=series.length-1;
+  g+=`<circle cx="${x(0)}" cy="${y(series[0])}" r="2.5" fill="#9aa0a6"/>`;
+  g+=`<circle cx="${x(last)}" cy="${y(series[last])}" r="3.5" fill="#fff"/>`;
+  g+=`<text class="vlabel" x="${x(last)-4}" y="${y(series[last])-7}" text-anchor="end">${fmt(series[last])}</text>`;
+  el.innerHTML=g;
+}
+
+function renderKPIs(){
+  const box=document.getElementById("kpis");
+  const lastCity=CITY_MONTHLY[11], prevCity=CITY_MONTHLY[10];
+  const diff=((lastCity-prevCity)/prevCity*100);
+  const riskiest=[...D].sort((a,b)=>b.riskN-a.riskN)[0];
+  document.getElementById("ov_month").textContent=`${MNAME[LANG][MONTHS[11].m]} ${MONTHS[11].y}`;
+  const items=[
+    {v:fmt(lastCity),l:t("kpi_total"),d:`${(diff>=0?"▲ +":"▼ ")+diff.toFixed(1)}%`,cls:diff>=0?"up":"down"},
+    {v:"55.5%",l:t("kpi_theft"),d:t("prev")+": 55.6%",cls:""},
+    {v:riskiest.nm[LANG],l:t("kpi_night"),d:"☠ "+t("risk")[riskLabelIdx(riskiest.riskN)],cls:"up"},
+    {v:fmt(ARRESTS),l:t("kpi_arr"),d:"2025",cls:""}
+  ];
+  box.innerHTML=items.map(k=>`<div class="kpi"><div class="v">${k.v}</div>
+    <div class="l">${k.l}</div><div class="d ${k.cls}">${k.d}</div></div>`).join("");
+}
+
+function drawDyn(){
+  const el=document.getElementById("chartDyn");
+  document.getElementById("dyn_sub").textContent=`${MNAME[LANG][MONTHS[0].m]} ${MONTHS[0].y} — ${MNAME[LANG][MONTHS[11].m]} ${MONTHS[11].y}`;
+  document.getElementById("dyn_scope").textContent = (LANG==="ru"?"Бильбао · зарегистрированные преступления в месяц":"Bilbao · reported crimes per month");
+  const W=900,H=330,L=54,R=14,T=18,B=44;
+  const data=CITY_MONTHLY, max=Math.max(...data)*1.12, min=0;
+  const bw=(W-L-R)/data.length;
+  const x=i=>L+i*bw+bw*0.16, y=v=>T+(1-(v-min)/(max-min))*(H-T-B);
+  const bwi=bw*0.68;
+  let g=`<defs><linearGradient id="bg2" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#7a0a12"/><stop offset="1" stop-color="#e01020"/></linearGradient>
+      <linearGradient id="bgp2" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#c1121f"/><stop offset="1" stop-color="#ff3040"/></linearGradient></defs>`;
+  for(let i=0;i<=4;i++){ const gy=T+(H-T-B)*i/4; const val=Math.round(max*(1-i/4));
+    g+=`<line class="gline" x1="${L}" y1="${gy}" x2="${W-R}" y2="${gy}"/>
+        <text class="alabel" x="${L-6}" y="${gy+3}" text-anchor="end">${fmt(val)}</text>`; }
+  const peak=data.indexOf(Math.max(...data));
+  data.forEach((v,i)=>{
+    const bx=x(i),by=y(v),bh=T+(H-T-B)-by;
+    g+=`<rect x="${bx}" y="${by}" width="${bwi}" height="${bh}" rx="2" fill="url(#${i===peak?'bgp2':'bg2'})"/>`;
+    g+=`<text class="vlabel" x="${bx+bwi/2}" y="${by-4}" text-anchor="middle" fill="${i===peak?'#ff3040':'#cdd0d4'}">${fmt(v)}</text>`;
+    g+=`<text class="alabel" x="${bx+bwi/2}" y="${H-B+16}" text-anchor="middle">${MNAME[LANG][MONTHS[i].m]}</text>`;
+  });
+  el.innerHTML=g;
+}
+
+function drawTypeMix(){
+  const box=document.getElementById("typeMix");
+  const max=Math.max(...CITY_MIX.map(m=>m.pct));
+  box.innerHTML=CITY_MIX.map(m=>`
+    <div class="tbar"><div class="r"><span>${I18N[LANG].types[m.k]}</span><span>${m.pct}%</span></div>
+    <div class="track"><div class="fill" style="width:${Math.round(m.pct/max*100)}%"></div></div></div>`).join("");
+}
+function drawOffenders(){
+  const box=document.getElementById("offBox");
+  const stat=I18N[LANG].off_stat;
+  const orig=I18N[LANG].origin;
+  box.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+      ${stat.map(s=>`<div style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:12.5px;letter-spacing:.02em;color:#dcdfe3;font-weight:700">${s}</div>`).join("")}
+    </div>
+    <div class="mini-label">${I18N[LANG].origin_h}</div>
+    ${orig.map(([k,v])=>`
+      <div class="tbar"><div class="r"><span>${k}</span><span>${v}%</span></div>
+      <div class="track"><div class="fill" style="width:${v}%"></div></div></div>`).join("")}
+    <div class="note">${I18N[LANG].origin_note}</div>
+    <div class="note" style="border-left:2px solid var(--blood-dark);padding-left:9px;margin-top:8px">${I18N[LANG].origin_caveat}</div>`;
+}
+
+let rankOpen=null;
+function drawRank(){
+  const box=document.getElementById("rank");
+  const ranked=[...D].sort((a,b)=>b.riskN-a.riskN).slice(0,12);
+  box.innerHTML=ranked.map((d,i)=>{
+    const ri=riskLabelIdx(d.riskN), rc=riskLabelColor(ri);
+    const open=d.id===rankOpen;
+    return `<div class="rgroup ${open?'on':''}">
+      <div class="row" onclick="rankTap('${d.id}')">
+        <div class="pos">${i+1}</div>
+        <div class="nm">${d.nm[LANG]}<small>${d.muni} · ${d.dist[LANG]}</small></div>
+        <div class="sc" style="color:${rc}">${d.riskN}<span style="color:var(--grey2);font-size:10px"> /100</span><span class="caret">${open?'▲':'▾'}</span></div>
+      </div>
+      ${open?`<div class="rpanel">${statBlock(d)}</div>`:''}
+    </div>`;
+  }).join("");
+}
+function rankTap(id){ rankOpen = (rankOpen===id ? null : id); selectD(id, false); }
+
+/* ---------- live incidents (Google News RSS via CORS proxy) ---------- */
+const LIVE_QUERY='(sucesos OR detenido OR detenidos OR robo OR agresión OR hurto OR apuñalado OR "San Francisco") Bilbao';
+const LIVE_FEED="https://news.google.com/rss/search?q="+encodeURIComponent(LIVE_QUERY)+"&hl=es-ES&gl=ES&ceid=ES:es";
+const LIVE_PROXIES=[
+  u=>"https://api.allorigins.win/raw?url="+encodeURIComponent(u),
+  u=>"https://corsproxy.io/?url="+encodeURIComponent(u)
+];
+let liveItems=null, liveWin=1, liveLoading=false;
+function timeago(dt){
+  const s=(Date.now()-dt.getTime())/1000;
+  if(s<3600) return t("ago_now");
+  if(s<86400) return Math.floor(s/3600)+" "+t("ago_h");
+  return Math.floor(s/86400)+" "+t("ago_d");
+}
+async function loadLive(force){
+  if(liveLoading) return;
+  if(liveItems && !force){ renderLive(); return; }
+  liveLoading=true;
+  const box=document.getElementById("liveList");
+  box.innerHTML=`<div class="note">${t("live_loading")}</div>`;
+  let xml=null;
+  for(const px of LIVE_PROXIES){
+    try{ const res=await fetch(px(LIVE_FEED),{cache:"no-store"});
+      if(!res.ok) continue; const txt=await res.text();
+      if(txt && txt.indexOf("<item")>-1){ xml=txt; break; } }
+    catch(e){ /* try next */ }
+  }
+  liveLoading=false;
+  if(!xml){ box.innerHTML=`<div class="note">${t("live_fail")}</div>`; return; }
+  try{
+    const doc=new DOMParser().parseFromString(xml,"text/xml");
+    liveItems=[...doc.querySelectorAll("item")].map(it=>{
+      const g=s=>{const n=it.querySelector(s);return n?n.textContent:"";};
+      return {title:g("title"), link:g("link"), src:g("source"),
+        date:new Date(g("pubDate")||Date.now())};
+    }).filter(x=>x.title);
+    renderLive();
+  }catch(e){ box.innerHTML=`<div class="note">${t("live_fail")}</div>`; }
+}
+function renderLive(){
+  const box=document.getElementById("liveList");
+  document.getElementById("live_note").textContent=t("live_note");
+  renderWindows();
+  if(!liveItems){ return; }
+  const now=Date.now(), ms=liveWin*24*3600*1000;
+  const items=liveItems.filter(x=> (now-x.date.getTime())<=ms && (now-x.date.getTime())>=-3600000).slice(0,25);
+  if(!items.length){ box.innerHTML=`<div class="note">${t("live_none")}</div>`; return; }
+  box.innerHTML=items.map(x=>{
+    const title=x.title.replace(/\s+-\s+[^-]+$/,"");
+    return `<a class="liveitem" href="${x.link}" target="_blank" rel="noopener noreferrer">
+      <div class="lt">${title}</div>
+      <div class="lm"><span class="src">${x.src||"news"}</span><span>${timeago(x.date)}</span></div></a>`;
+  }).join("");
+}
+
+function applyStatic(){
+  document.querySelectorAll("[data-i]").forEach(el=>{ const k=el.getAttribute("data-i");
+    if(I18N[LANG][k]!==undefined && typeof I18N[LANG][k]==="string") el.textContent=I18N[LANG][k]; });
+  document.getElementById("leg_t").textContent = mapMode==="danger"? t("m_danger"):t("leg_vol");
+  document.getElementById("disc").textContent=t("disc");
+  document.documentElement.lang=LANG;
+}
+function relabelMap(){
+  D.forEach(d=>{ const L0=layers[d.id]; if(L0&&L0.label) L0.label.setContent(d.nm[LANG]); });
+}
+function setLang(l){ LANG=l;
+  document.getElementById("ru").classList.toggle("on",l==="ru");
+  document.getElementById("en").classList.toggle("on",l==="en");
+  applyStatic(); renderKPIs(); renderWindows(); renderWinBreak(); relabelMap(); renderDetail(); drawDyn(); drawTypeMix(); drawOffenders(); drawRank(); renderLive();
+}
+
+document.querySelectorAll("#mapmode button").forEach(b=>{
+  b.addEventListener("click",()=>{ mapMode=b.getAttribute("data-mode");
+    document.querySelectorAll("#mapmode button").forEach(x=>x.classList.toggle("on",x===b));
+    document.getElementById("leg_t").textContent = mapMode==="danger"? t("m_danger"):t("leg_vol");
+    paintMap(); });
+});
+document.querySelectorAll("#livetabs button[data-win]").forEach(b=>{
+  b.addEventListener("click",()=>{ liveWin=+b.getAttribute("data-win");
+    document.querySelectorAll("#livetabs button[data-win]").forEach(x=>x.classList.toggle("on",x===b));
+    renderLive(); });
+});
+document.querySelectorAll("nav button").forEach(b=>{
+  b.addEventListener("click",()=>{ document.getElementById(b.getAttribute("data-go")).scrollIntoView({behavior:"smooth",block:"start"}); });
+});
+window.addEventListener("scroll",()=>{
+  const secs=["s-over","s-map","s-live","s-dyn","s-rank"]; let cur=secs[0];
+  for(const s of secs){ const r=document.getElementById(s).getBoundingClientRect();
+    if(r.top<window.innerHeight*0.4) cur=s; }
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.getAttribute("data-go")===cur));
+});
+
+/* init */
+applyStatic(); renderKPIs(); renderWindows(); drawDyn(); drawTypeMix(); drawOffenders(); drawRank();
+initMap(); selectD("sanfrancisco", false); loadLive();
+
+if("serviceWorker" in navigator){ window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{})); }
+</script>
+</body>
+</html>
