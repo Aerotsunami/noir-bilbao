@@ -1020,13 +1020,9 @@ function drawRank(){
 }
 function rankTap(id){ rankOpen = (rankOpen===id ? null : id); selectD(id, false); }
 
-/* ---------- live incidents (Google News RSS via CORS proxy) ---------- */
+/* ---------- live incidents (Google News RSS via public JSON/CORS bridges) ---------- */
 const LIVE_QUERY='(sucesos OR detenido OR detenidos OR robo OR agresión OR hurto OR apuñalado OR "San Francisco") Bilbao';
 const LIVE_FEED="https://news.google.com/rss/search?q="+encodeURIComponent(LIVE_QUERY)+"&hl=es-ES&gl=ES&ceid=ES:es";
-const LIVE_PROXIES=[
-  u=>"https://api.allorigins.win/raw?url="+encodeURIComponent(u),
-  u=>"https://corsproxy.io/?url="+encodeURIComponent(u)
-];
 let liveItems=null, liveWin=1, liveLoading=false;
 function timeago(dt){
   const s=(Date.now()-dt.getTime())/1000;
@@ -1034,30 +1030,47 @@ function timeago(dt){
   if(s<86400) return Math.floor(s/3600)+" "+t("ago_h");
   return Math.floor(s/86400)+" "+t("ago_d");
 }
+function srcFromTitle(t0){ const m=(t0||"").match(/\s-\s([^-]+)$/); return m?m[1].trim():""; }
+async function fetchTimeout(url,ms){ const c=new AbortController(); const id=setTimeout(()=>c.abort(),ms||12000);
+  try{ return await fetch(url,{signal:c.signal,cache:"no-store"}); } finally{ clearTimeout(id); } }
 async function loadLive(force){
   if(liveLoading) return;
   if(liveItems && !force){ renderLive(); return; }
   liveLoading=true;
   const box=document.getElementById("liveList");
   box.innerHTML=`<div class="note">${t("live_loading")}</div>`;
-  let xml=null;
-  for(const px of LIVE_PROXIES){
-    try{ const res=await fetch(px(LIVE_FEED),{cache:"no-store"});
-      if(!res.ok) continue; const txt=await res.text();
-      if(txt && txt.indexOf("<item")>-1){ xml=txt; break; } }
-    catch(e){ /* try next */ }
+  let items=null;
+  // Primary: rss2json — returns clean JSON with CORS enabled.
+  try{
+    const r=await fetchTimeout("https://api.rss2json.com/v1/api.json?rss_url="+encodeURIComponent(LIVE_FEED),12000);
+    const j=await r.json();
+    if(j && j.status==="ok" && j.items && j.items.length){
+      items=j.items.map(it=>({ title:it.title||"", link:it.link||"", src:srcFromTitle(it.title),
+        date:new Date(it.pubDate||Date.now()) })).filter(x=>x.title);
+    }
+  }catch(e){}
+  // Fallback: raw XML through public CORS proxies (used only if rss2json is down).
+  if(!items){
+    const proxies=[
+      u=>"https://api.allorigins.win/raw?url="+encodeURIComponent(u),
+      u=>"https://corsproxy.io/?url="+encodeURIComponent(u)
+    ];
+    for(const px of proxies){
+      try{ const res=await fetchTimeout(px(LIVE_FEED),12000); if(!res.ok) continue;
+        const txt=await res.text();
+        if(txt && txt.indexOf("<item")>-1){
+          const doc=new DOMParser().parseFromString(txt,"text/xml");
+          items=[...doc.querySelectorAll("item")].map(it=>{ const g=s=>{const n=it.querySelector(s);return n?n.textContent:"";};
+            return {title:g("title"), link:g("link"), src:g("source")||srcFromTitle(g("title")), date:new Date(g("pubDate")||Date.now())}; }).filter(x=>x.title);
+          break;
+        } }
+      catch(e){}
+    }
   }
   liveLoading=false;
-  if(!xml){ box.innerHTML=`<div class="note">${t("live_fail")}</div>`; return; }
-  try{
-    const doc=new DOMParser().parseFromString(xml,"text/xml");
-    liveItems=[...doc.querySelectorAll("item")].map(it=>{
-      const g=s=>{const n=it.querySelector(s);return n?n.textContent:"";};
-      return {title:g("title"), link:g("link"), src:g("source"),
-        date:new Date(g("pubDate")||Date.now())};
-    }).filter(x=>x.title);
-    renderLive();
-  }catch(e){ box.innerHTML=`<div class="note">${t("live_fail")}</div>`; }
+  if(!items){ box.innerHTML=`<div class="note">${t("live_fail")}</div>`; return; }
+  liveItems=items;
+  renderLive();
 }
 function renderLive(){
   const box=document.getElementById("liveList");
