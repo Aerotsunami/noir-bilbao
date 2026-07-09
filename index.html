@@ -282,8 +282,8 @@
     <div class="sec-h"><h2 data-i="live_h">Recent incidents</h2><span class="barline"></span><span class="sub" data-i="live_sub">Live news feed</span></div>
     <div class="card">
       <div class="seg" id="livetabs" style="margin-bottom:10px">
-        <button data-win="1" class="on" data-i="live_24">24 hours</button>
-        <button data-win="3" data-i="live_3d">3 days</button>
+        <button data-win="1" data-i="live_24">24 hours</button>
+        <button data-win="3" class="on" data-i="live_3d">3 days</button>
         <button data-win="7" data-i="live_wk">Week</button>
         <button onclick="loadLive(true)" title="reload" style="border-left:1px solid var(--line)">⟳</button>
       </div>
@@ -1023,7 +1023,7 @@ function rankTap(id){ rankOpen = (rankOpen===id ? null : id); selectD(id, false)
 /* ---------- live incidents (Google News RSS via public JSON/CORS bridges) ---------- */
 const LIVE_QUERY='(sucesos OR detenido OR detenidos OR robo OR agresión OR hurto OR apuñalado OR "San Francisco") Bilbao';
 const LIVE_FEED="https://news.google.com/rss/search?q="+encodeURIComponent(LIVE_QUERY)+"&hl=es-ES&gl=ES&ceid=ES:es";
-let liveItems=null, liveWin=1, liveLoading=false;
+let liveItems=null, liveWin=3, liveLoading=false;
 function timeago(dt){
   const s=(Date.now()-dt.getTime())/1000;
   if(s<3600) return t("ago_now");
