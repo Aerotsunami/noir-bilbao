@@ -1,5 +1,5 @@
 /* NOIR BILBAO — service worker (auto-updating) */
-const CACHE = "noir-bilbao-v2";
+const CACHE = "noir-bilbao-v3";
 const ASSETS = [
   "./",
   "./index.html",
